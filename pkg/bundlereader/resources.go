@@ -29,7 +29,7 @@ type Auth struct {
 	SSHPrivateKey []byte
 }
 
-// readResources reads and downloads all resources from the bundle
+// readResources reads, downloads and extracts all resources from the bundle
 func readResources(ctx context.Context, spec *fleet.BundleSpec, compress bool, base string, auth Auth) ([]fleet.BundleResource, error) {
 	var directories []directory
 
