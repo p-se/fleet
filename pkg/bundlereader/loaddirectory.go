@@ -1,14 +1,19 @@
 package bundlereader
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -23,10 +28,50 @@ import (
 	"helm.sh/helm/v3/pkg/registry"
 )
 
+// extractArchives extracts all archives in files and returns the content of all archives
+// added to files.
+//
+// It is used to enable Kustomize to run through the files and make modifications.
+func extractArchives(files map[string][]byte) (map[string][]byte, error) {
+	result := make(map[string][]byte)
+	for filename, data := range files {
+		if strings.HasSuffix(filename, ".tar.gz") || strings.HasSuffix(filename, ".tgz") {
+			zr, err := gzip.NewReader(bytes.NewReader(data))
+			if err != nil {
+				return nil, err
+			}
+			tr := tar.NewReader(zr)
+			dir := path.Dir(filename)
+			for {
+				hdr, err := tr.Next()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					return nil, err
+				}
+				fileContent := new(bytes.Buffer)
+				if _, err = fileContent.ReadFrom(tr); err != nil {
+					return nil, err
+				}
+				result[path.Join(dir, hdr.Name)] = fileContent.Bytes()
+			}
+		} else {
+			result[filename] = data
+		}
+	}
+	return result, nil
+}
+
 func loadDirectory(ctx context.Context, compress bool, prefix, base, source, version string, auth Auth) ([]fleet.BundleResource, error) {
 	var resources []fleet.BundleResource
 
 	files, err := getContent(ctx, base, source, version, auth)
+	if err != nil {
+		return nil, err
+	}
+
+	files, err = extractArchives(files)
 	if err != nil {
 		return nil, err
 	}
