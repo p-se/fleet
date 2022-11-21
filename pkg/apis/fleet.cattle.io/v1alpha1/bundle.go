@@ -153,6 +153,7 @@ type BundleStatus struct {
 	ObservedGeneration       int64             `json:"observedGeneration"`
 }
 
+// ResourceKey is a compound data type to be used as a key in a map to find a unique resource of the cluster.
 type ResourceKey struct {
 	Kind       string `json:"kind,omitempty"`
 	APIVersion string `json:"apiVersion,omitempty"`
