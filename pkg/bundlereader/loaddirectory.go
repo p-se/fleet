@@ -64,7 +64,16 @@ func extractArchives(files map[string][]byte) (map[string][]byte, error) {
 	return result, nil
 }
 
-func loadDirectory(ctx context.Context, compress bool, prefix, base, source, version string, auth Auth) ([]fleet.BundleResource, error) {
+// loadDirectory loads a directory and returns its content as a BundleResource slice.
+//
+// Archives (tgz, tar.gz) are extracted if they reside in the `charts` folder of a Chart,
+// so that the contents of these archives can also be kustomized.
+func loadDirectory(
+	ctx context.Context,
+	compress bool,
+	prefix, base, source, version string,
+	auth Auth,
+) ([]fleet.BundleResource, error) {
 	var resources []fleet.BundleResource
 
 	files, err := getContent(ctx, base, source, version, auth)
