@@ -35,13 +35,14 @@ import (
 func extractArchives(files map[string][]byte) (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	for filename, data := range files {
-		if strings.HasSuffix(filename, ".tar.gz") || strings.HasSuffix(filename, ".tgz") {
+		dir := path.Dir(filename)
+		if strings.HasSuffix("charts", dir) &&
+			(strings.HasSuffix(filename, ".tar.gz") || strings.HasSuffix(filename, ".tgz")) {
 			zr, err := gzip.NewReader(bytes.NewReader(data))
 			if err != nil {
 				return nil, err
 			}
 			tr := tar.NewReader(zr)
-			dir := path.Dir(filename)
 			for {
 				hdr, err := tr.Next()
 				if err == io.EOF {
