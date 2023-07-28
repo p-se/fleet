@@ -10,15 +10,7 @@ RUN apk add fcgiwrap
 RUN apk add spawn-fcgi
 
 # Set user info and enable force-push
-COPY <<-"EOT" /root/.gitconfig
-[user]
-        name = Fleet CI
-        email = fleet.ci@test.com
-[http]
-        receivepack = true
-[receive]
-        denyNonFastforwards = false
-EOT
+COPY gitconfig /root/.gitconfig
 
 # Configure git remote
 RUN mkdir -p /srv/git/repo

@@ -1,0 +1,7 @@
+[user]
+        name = Fleet CI
+        email = fleet.ci@test.com
+[http]
+        receivepack = true
+[receive]
+        denyNonFastforwards = false
