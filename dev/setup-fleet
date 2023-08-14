@@ -14,11 +14,18 @@ fi
 host=$( docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' k3d-$cluster_name-server-0 )
 ca=$( kubectl config view --flatten -o jsonpath='{.clusters[?(@.name == "k3d-$cluster_name")].cluster.certificate-authority-data}' | base64 -d )
 server="https://$host:6443"
-helm -n cattle-fleet-system upgrade --install --create-namespace --wait fleet-crd charts/fleet-crd
-helm -n cattle-fleet-system upgrade --install --create-namespace --wait --reset-values \
+while !  helm -n cattle-fleet-system upgrade --install --atomic --create-namespace --wait fleet-crd charts/fleet-crd
+do
+  sleep 1
+done
+
+while ! helm -n cattle-fleet-system upgrade --install --atomic --create-namespace --wait --reset-values \
   --set apiServerCA="$ca" \
   --set apiServerURL="$server" \
   --set debug=true --set debugLevel=99 fleet charts/fleet
+do
+  sleep 1
+done
 
 # wait for controller and agent rollout
 kubectl -n cattle-fleet-system rollout status deploy/fleet-controller
