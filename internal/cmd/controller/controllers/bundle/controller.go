@@ -342,6 +342,7 @@ func (h *handler) updateStatusAndTargets(status *fleet.BundleStatus, allTargets 
 	}
 
 	for _, partition := range partitions {
+		partition := partition
 		for _, target := range partition.Targets {
 			if target.Deployment == nil {
 				resetDeployment(target, status)

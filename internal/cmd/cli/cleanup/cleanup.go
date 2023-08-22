@@ -54,6 +54,7 @@ func ClusterRegistrations(ctx context.Context, client Getter, opts Options) erro
 	// figure out the latest granted registration request per cluster
 	latestGranted := map[types.NamespacedName]metav1.Time{}
 	for _, cr := range crList.Items {
+		cr := cr
 		if cr.Status.ClusterName == "" {
 			continue
 		}
