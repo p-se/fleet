@@ -1,13 +1,14 @@
 package multicluster_test
 
 import (
+	"math/rand"
 	"time"
-
-	"github.com/rancher/fleet/e2e/testenv"
-	"github.com/rancher/fleet/e2e/testenv/kubectl"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/rancher/fleet/e2e/testenv"
+	"github.com/rancher/fleet/e2e/testenv/kubectl"
 )
 
 var _ = Describe("Bundle Namespace Mapping", Label("difficult"), func() {
@@ -49,7 +50,7 @@ var _ = Describe("Bundle Namespace Mapping", Label("difficult"), func() {
 	Context("with bundlenamespacemapping", func() {
 		When("bundle selector does not match", func() {
 			BeforeEach(func() {
-				namespace = testenv.NewNamespaceName("bnm-nomatch")
+				namespace = testenv.NewNamespaceName("bnm-nomatch", rand.New(rand.NewSource(GinkgoRandomSeed())))
 				asset = "multi-cluster/bundle-namespace-mapping.yaml"
 				data = TemplateData{env.ClusterRegistrationNamespace, namespace, "", "mismatch", false}
 			})
@@ -73,7 +74,7 @@ var _ = Describe("Bundle Namespace Mapping", Label("difficult"), func() {
 				data = TemplateData{env.ClusterRegistrationNamespace, namespace, "targetNamespace: project1simpleapp", "one", true}
 			})
 
-			It("deploys to the mapped downstream cluster", func() {
+			It("deploys to the mapped downstream cluster", Label("bug"), func() {
 				Eventually(func() string {
 					out, _ := k.Get("bundledeployments", "-A", "-l", "fleet.cattle.io/bundle-namespace="+namespace)
 					return out
