@@ -17,4 +17,5 @@ while ! ( docker exec "$container"-server-0 /bin/crictl images | grep -q "$name"
     exit 1
   fi
   k3d image import "$@"
+  sleep 10
 done
