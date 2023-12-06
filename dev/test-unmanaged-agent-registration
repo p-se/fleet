@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+./dev/setup-single-cluster  # needs to create a cluster with --network=fleet !
+
+# Create an empty k3d cluster
+if k3d cluster list --no-headers | grep -q downstream; then
+  k3d cluster delete downstream
+fi
+k3d cluster create downstream --network=fleet
+
+# Import fleet image to downstream cluster
+k3d image import rancher/fleet-agent:dev -m direct -c downstream
+
+./dev/create-fleet-secret  # creates everything in upstream and downstream

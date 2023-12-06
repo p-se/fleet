@@ -2,7 +2,9 @@
 
 set -euxo pipefail
 
-args=${k3d_args-}
+# --network=fleet makes it easy spawn additional empty clusters which can talk
+# to this one.
+args=${k3d_args---network fleet}
 docker_mirror=${docker_mirror-}
 name=${1-upstream}
 i=${2-0}

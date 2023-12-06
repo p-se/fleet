@@ -60,7 +60,7 @@ global:
     tag: v1.21.5
 
 agentmanagement:
-  enabled: false
+  enabled: true
 
 debug: false
 debugLevel: 0
