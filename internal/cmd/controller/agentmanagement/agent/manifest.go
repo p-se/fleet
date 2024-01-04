@@ -5,17 +5,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/rancher/fleet/internal/config"
 	"github.com/rancher/wrangler/v2/pkg/name"
-
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/rancher/fleet/internal/config"
 )
 
 var (
@@ -144,6 +143,7 @@ func agentApp(namespace string, agentScope string, opts ManifestOptions) *appsv1
 			Name:      name,
 		},
 		Spec: appsv1.StatefulSetSpec{
+			ServiceName: name,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": name,

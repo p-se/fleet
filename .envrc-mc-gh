@@ -1,0 +1,2 @@
+export FLEET_E2E_NS=fleet-local
+export FLEET_E2E_NS_DOWNSTREAM=fleet-default

@@ -53,8 +53,9 @@ else
   ca=$(kubectl get -n default secret "$name" -o go-template='{{index .data "ca.crt" | base64decode}}')
 fi
 
-# docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}'
-public_hostname="${public_hostname-172.17.0.1.omg.howdoi.website}"
+public_hostname=$( docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' )
+# public_hostname=$( docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$upstream_ctx-server-0" )
+# public_hostname="${public_hostname-172.17.0.1.omg.howdoi.website}"
 
 kubectl config use-context "$downstream_ctx"
 helm -n cattle-fleet-system upgrade --install --create-namespace --wait fleet-agent charts/fleet-agent \
