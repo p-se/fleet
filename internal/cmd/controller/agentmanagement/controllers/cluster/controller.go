@@ -4,11 +4,16 @@ package cluster
 import (
 	"context"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/sirupsen/logrus"
 
 	fname "github.com/rancher/fleet/internal/name"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	fleetcontrollers "github.com/rancher/fleet/pkg/generated/controllers/fleet.cattle.io/v1alpha1"
+	"github.com/rancher/fleet/pkg/metrics"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	corecontrollers "github.com/rancher/wrangler/v2/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v2/pkg/kv"
@@ -20,6 +25,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+var (
+	onClusterChangedCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "fleet_on_cluster_changed_total",
+		Help: "The total number of times the on cluster changed handler is called",
+	})
+)
+
+func init() {
+	crmetrics.Registry.MustRegister(onClusterChangedCounter)
+}
 
 type handler struct {
 	clusters             fleetcontrollers.ClusterController
@@ -104,9 +120,13 @@ func clusterNamespace(clusterNamespace, clusterName string) string {
 		clusterNamespace,
 		clusterName,
 		fname.KeyHash(clusterNamespace+"::"+clusterName))
+
 }
 
 func (h *handler) OnClusterChanged(cluster *fleet.Cluster, status fleet.ClusterStatus) (fleet.ClusterStatus, error) {
+	metrics.CollectClusterMetrics(cluster, &status)
+	onClusterChangedCounter.Inc()
+
 	logrus.Debugf("OnClusterChanged for cluster status %s, checking cluster registration, updating status from bundledeployments, gitrepos", cluster.Name)
 	if cluster.DeletionTimestamp != nil {
 		// cluster is being deleted, clean up the cluster registrations
