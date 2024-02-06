@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/fleet/internal/cmd/controller/summary"
 	"github.com/rancher/fleet/internal/cmd/controller/target"
 	"github.com/rancher/fleet/internal/manifest"
+	"github.com/rancher/fleet/internal/metrics"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -60,6 +61,8 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	bundle := &fleet.Bundle{}
 	err := r.Get(ctx, req.NamespacedName, bundle)
 	if apierrors.IsNotFound(err) {
+		metrics.BundleCollector.Delete(req.Name, req.Namespace)
+
 		logger.V(1).Info("Bundle not found, purging bundle deployments")
 		if err := purgeBundleDeployments(ctx, r.Client, req.NamespacedName); err != nil {
 			return ctrl.Result{}, err
@@ -111,18 +114,21 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if err := resetStatus(&bundle.Status, matchedTargets); err != nil {
 		updateDisplay(&bundle.Status)
+		metrics.BundleCollector.Collect(bundle)
 		return ctrl.Result{}, err
 	}
 
 	// this will add the defaults for a new bundledeployment
 	if err := target.UpdatePartitions(&bundle.Status, matchedTargets); err != nil {
 		updateDisplay(&bundle.Status)
+		metrics.BundleCollector.Collect(bundle)
 		return ctrl.Result{}, err
 	}
 
 	if bundle.Status.ObservedGeneration != bundle.Generation {
 		if err := setResourceKey(context.Background(), &bundle.Status, bundle, manifest, r.isNamespaced); err != nil {
 			updateDisplay(&bundle.Status)
+			metrics.BundleCollector.Collect(bundle)
 			return ctrl.Result{}, err
 		}
 	}
@@ -159,6 +165,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	updateDisplay(&bundle.Status)
+	metrics.BundleCollector.Collect(bundle)
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		t := &fleet.Bundle{}
 		err := r.Get(ctx, req.NamespacedName, t)

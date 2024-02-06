@@ -9,6 +9,7 @@ import (
 
 	grutil "github.com/rancher/fleet/internal/cmd/controller/gitrepo"
 	"github.com/rancher/fleet/internal/cmd/controller/imagescan"
+	"github.com/rancher/fleet/internal/metrics"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"github.com/reugn/go-quartz/quartz"
 
@@ -57,6 +58,9 @@ func (r *GitRepoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Clean up
 	if apierrors.IsNotFound(err) {
 		logger.V(1).Info("Gitrepo deleted, deleting bundle, image scans")
+
+		metrics.GitRepoCollector.Delete(req.NamespacedName.Name, req.NamespacedName.Namespace)
+
 		if err := purgeBundles(ctx, r.Client, req.NamespacedName); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -69,6 +73,8 @@ func (r *GitRepoReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		return ctrl.Result{}, nil
 	}
+
+	metrics.GitRepoCollector.Collect(gitrepo)
 
 	logger = logger.WithValues("commit", gitrepo.Status.Commit)
 	logger.V(1).Info("Reconciling GitRepo", "lastAccepted", acceptedLastUpdate(gitrepo.Status.Conditions))
