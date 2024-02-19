@@ -8,6 +8,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 )
 
 var (
@@ -126,13 +129,16 @@ func CollectGitRepoMetrics(gitrepo *fleet.GitRepo, status *fleet.GitRepoStatus) 
 
 	gitrepoDesiredReadyClusters.With(labels).Set(float64(status.DesiredReadyClusters))
 	gitrepoReadyClusters.With(labels).Set(float64(status.ReadyClusters))
+
 	gitrepoResourcesMissing.With(labels).Set(float64(status.ResourceCounts.Missing))
 	gitrepoResourcesModified.With(labels).Set(float64(status.ResourceCounts.Modified))
 	gitrepoResourcesNotReady.With(labels).Set(float64(status.ResourceCounts.NotReady))
 	gitrepoResourcesOrphaned.With(labels).Set(float64(status.ResourceCounts.Orphaned))
+	gitrepoResourcesDesiredReady.With(labels).Set(float64(status.ResourceCounts.DesiredReady))
 	gitrepoResourcesReady.With(labels).Set(float64(status.ResourceCounts.Ready))
 	gitrepoResourcesUnknown.With(labels).Set(float64(status.ResourceCounts.Unknown))
 	gitrepoResourcesWaitApplied.With(labels).Set(float64(status.ResourceCounts.WaitApplied))
+
 	gitrepoObserved.With(labels).Inc()
 }
 
