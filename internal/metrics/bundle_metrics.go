@@ -108,6 +108,10 @@ var (
 )
 
 func CollectBundleMetrics(bundle *fleet.Bundle, status *fleet.BundleStatus) {
+	if !enabled {
+		return
+	}
+
 	labels := prometheus.Labels{
 		"name":       bundle.Name,
 		"namespace":  bundle.Namespace,
@@ -140,7 +144,7 @@ func CollectBundleMetrics(bundle *fleet.Bundle, status *fleet.BundleStatus) {
 	}
 }
 
-func init() {
+func registerBundleMetrics() {
 	metrics.Registry.MustRegister(bundleNotReadyDeployments)
 	metrics.Registry.MustRegister(bundleWaitAppliedDeployments)
 	metrics.Registry.MustRegister(bundleErrAppliedDeployments)

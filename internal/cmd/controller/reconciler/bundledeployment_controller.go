@@ -8,7 +8,7 @@ import (
 
 	"github.com/rancher/fleet/internal/cmd/controller/summary"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
-	"github.com/rancher/fleet/pkg/metrics"
+	"github.com/rancher/fleet/internal/metrics"
 	"github.com/rancher/wrangler/v2/pkg/genericcondition"
 
 	"k8s.io/apimachinery/pkg/runtime"

@@ -28,4 +28,15 @@ var (
 
 	clusterNameLabel        = "management.cattle.io/cluster-name"
 	clusterDisplayNameLabel = "management.cattle.io/cluster-display-name"
+
+	enabled = false
 )
+
+func RegisterMetrics() {
+	enabled = true
+	registerBundleDeploymentMetrics()
+	registerBundleMetrics()
+	registerClusterGroupMetrics()
+	registerClusterMetrics()
+	registerGitRepoMetrics()
+}

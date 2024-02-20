@@ -142,7 +142,14 @@ var (
 	)
 )
 
-func CollectClusterGroupMetrics(clusterGroup *fleet.ClusterGroup, status *fleet.ClusterGroupStatus) {
+func CollectClusterGroupMetrics(
+	clusterGroup *fleet.ClusterGroup,
+	status *fleet.ClusterGroupStatus,
+) {
+	if !enabled {
+		return
+	}
+
 	labels := prometheus.Labels{
 		"name":       clusterGroup.Name,
 		"namespace":  clusterGroup.Namespace,
@@ -175,7 +182,7 @@ func CollectClusterGroupMetrics(clusterGroup *fleet.ClusterGroup, status *fleet.
 	}
 }
 
-func init() {
+func registerClusterGroupMetrics() {
 	metrics.Registry.MustRegister(clusterGroupClusterCount)
 	metrics.Registry.MustRegister(clusterGroupNonReadyClusterCount)
 	metrics.Registry.MustRegister(clusterGroupResourcesDesiredReady)

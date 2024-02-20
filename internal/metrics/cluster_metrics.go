@@ -143,6 +143,10 @@ var (
 )
 
 func CollectClusterMetrics(cluster *fleet.Cluster, status *fleet.ClusterStatus) {
+	if !enabled {
+		return
+	}
+
 	labels := prometheus.Labels{
 		"name":                 cluster.Name,
 		"namespace":            cluster.Namespace,
@@ -177,7 +181,7 @@ func CollectClusterMetrics(cluster *fleet.Cluster, status *fleet.ClusterStatus) 
 	}
 }
 
-func init() {
+func registerClusterMetrics() {
 	metrics.Registry.MustRegister(clusterAgentNodesReady)
 	metrics.Registry.MustRegister(clusterAgentNodesNotReady)
 	metrics.Registry.MustRegister(clusterDesiredReadyGitRepos)

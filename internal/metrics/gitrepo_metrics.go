@@ -116,6 +116,10 @@ var (
 )
 
 func CollectGitRepoMetrics(gitrepo *fleet.GitRepo, status *fleet.GitRepoStatus) {
+	if !enabled {
+		return
+	}
+
 	labels := prometheus.Labels{
 		"name":      gitrepo.Name,
 		"namespace": gitrepo.Namespace,
@@ -139,13 +143,14 @@ func CollectGitRepoMetrics(gitrepo *fleet.GitRepo, status *fleet.GitRepoStatus) 
 	gitrepoObserved.With(labels).Inc()
 }
 
-func init() {
+func registerGitRepoMetrics() {
 	metrics.Registry.MustRegister(gitrepoDesiredReadyClusters)
 	metrics.Registry.MustRegister(gitrepoReadyClusters)
 	metrics.Registry.MustRegister(gitrepoResourcesMissing)
 	metrics.Registry.MustRegister(gitrepoResourcesModified)
 	metrics.Registry.MustRegister(gitrepoResourcesNotReady)
 	metrics.Registry.MustRegister(gitrepoResourcesOrphaned)
+	metrics.Registry.MustRegister(gitrepoResourcesDesiredReady)
 	metrics.Registry.MustRegister(gitrepoResourcesReady)
 	metrics.Registry.MustRegister(gitrepoResourcesUnknown)
 	metrics.Registry.MustRegister(gitrepoResourcesWaitApplied)
