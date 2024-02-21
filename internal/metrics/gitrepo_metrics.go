@@ -12,7 +12,7 @@ import (
 
 var (
 	gitRepoSubsystem = "gitrepo"
-	gitRepoLabels    = []string{"name", "namespace", "repo", "branch", "paths"}
+	gitRepoLabels    = []string{"name", "namespace", "repo", "branch", "paths", "commit"}
 
 	gitrepoResourcesDesiredReady = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -126,8 +126,8 @@ func CollectGitRepoMetrics(gitrepo *fleet.GitRepo, status *fleet.GitRepoStatus) 
 		"repo":      gitrepo.Spec.Repo,
 		"branch":    gitrepo.Spec.Branch,
 		"paths":     strings.Join(gitrepo.Spec.Paths, ";"),
+		"commit":    gitrepo.Status.Commit,
 	}
-
 	gitrepoDesiredReadyClusters.With(labels).Set(float64(status.DesiredReadyClusters))
 	gitrepoReadyClusters.With(labels).Set(float64(status.ReadyClusters))
 
