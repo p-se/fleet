@@ -17,6 +17,7 @@ helm repo update
 
 version="${1-}"
 if [ -z "$version" ]; then
+  # TODO does not work! not all releases of github are available in the helm repo!!!
   version=$(curl -s https://api.github.com/repos/rancher/rancher/releases | jq -r "sort_by(.tag_name) | [ .[] | select(.draft | not) ] | .[-1].tag_name")
 fi
 
