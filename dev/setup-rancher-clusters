@@ -17,8 +17,10 @@ helm repo update
 
 version="${1-}"
 if [ -z "$version" ]; then
-  # TODO does not work! not all releases of github are available in the helm repo!!!
-  version=$(curl -s https://api.github.com/repos/rancher/rancher/releases | jq -r "sort_by(.tag_name) | [ .[] | select(.draft | not) ] | .[-1].tag_name")
+  version=$(
+    curl -X GET "https://artifacthub.io/api/v1/packages/helm/rancher-stable/rancher" | \
+        jq -r ".available_versions[].version" | sort -V | tail -n 1
+  )
 fi
 
 kubectl config use-context "$upstream_ctx"
