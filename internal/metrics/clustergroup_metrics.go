@@ -16,11 +16,11 @@ var (
 		string(fleet.NotReady),
 		string(fleet.Ready),
 	}
-	ClusterGroupCollector = NewCollectorCollection(
+	ClusterGroupCollector = CollectorCollection{
 		clusterGroupSubsystem,
 		clusterGroupMetrics,
 		collectClusterGroupMetrics,
-	)
+	}
 	clusterGroupMetrics = map[string]prometheus.Collector{
 		"cluster_count": promauto.NewGaugeVec(
 			prometheus.GaugeOpts{

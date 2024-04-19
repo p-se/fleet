@@ -61,21 +61,6 @@ func (c *CollectorCollection) Collect(obj metav1.ObjectMetaAccessor) {
 	c.collector(obj, c.metrics)
 }
 
-// NewCollectorCollection creates a new CollectorCollection with the given
-// subsystem and metrics. It registers the metrics with the Prometheus registry.
-func NewCollectorCollection(
-	subsystem string,
-	metrics map[string]prometheus.Collector,
-	collector func(obj any, metrics map[string]prometheus.Collector),
-) *CollectorCollection {
-	cc := &CollectorCollection{
-		subsystem: subsystem,
-		metrics:   metrics,
-		collector: collector,
-	}
-	// cc.Register()
-	return cc
-}
 
 // Delete deletes the metric with the given name and namespace labels. It
 // returns the number of metrics deleted. It does a DeletePartialMatch on the

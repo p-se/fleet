@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
@@ -94,11 +95,11 @@ func (m *ExporterTest) FindOneMetric(
 type promLabels map[string]string
 
 func (l promLabels) String() string {
-	r := ""
+	labels := make([]string, 0, len(l))
 	for k, v := range l {
-		r += fmt.Sprintf("%s=%q, ", k, v)
+		labels = append(labels, fmt.Sprintf("%s=%q", k, v))
 	}
-	return r
+	return strings.Join(labels, ",")
 }
 
 type Metric struct {

@@ -31,11 +31,11 @@ var (
 		"WaitCheckIn",
 	}
 
-	ClusterCollector = NewCollectorCollection(
+	ClusterCollector = CollectorCollection{
 		clusterSubsystem,
 		clusterMetrics,
 		collectClusterMetrics,
-	)
+	}
 
 	clusterMetrics = map[string]prometheus.Collector{
 		"desired_ready_git_repos": promauto.NewGaugeVec(

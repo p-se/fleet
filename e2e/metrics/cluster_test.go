@@ -62,51 +62,47 @@ var _ = Describe("Cluster Metrics", Label("cluster"), func() {
 		"fleet_cluster_state": false,
 	}
 
-	It(
-		"should have as many clusters in metrics as there are objects in the cluster",
-		func() {
-			Eventually(func() error {
-				var (
-					clustersOut string
-					err         error
-				)
-				clustersOut, err = env.Kubectl.Get(
-					"-A", "clusters.fleet.cattle.io",
-					"-o", "json",
-				)
-				Expect(err).ToNot(HaveOccurred())
+	It("should have metrics for all existing cluster resources", func() {
+		Eventually(func() error {
+			var (
+				clustersOut string
+				err         error
+			)
+			clustersOut, err = env.Kubectl.Get(
+				"-A", "clusters.fleet.cattle.io",
+				"-o", "json",
+			)
+			Expect(err).ToNot(HaveOccurred())
 
-				var existingClusters clusters
-				err = json.Unmarshal([]byte(clustersOut), &existingClusters)
-				Expect(err).ToNot(HaveOccurred())
+			var existingClusters clusters
+			err = json.Unmarshal([]byte(clustersOut), &existingClusters)
+			Expect(err).ToNot(HaveOccurred())
 
-				et := metrics.NewExporterTest(metricsURL)
+			et := metrics.NewExporterTest(metricsURL)
 
-				for _, cluster := range existingClusters {
-					for metricName, expectedExist := range expectedMetricsExist {
-						_, err := et.FindOneMetric(
+			Expect(len(existingClusters)).ToNot(BeZero())
+
+			for _, cluster := range existingClusters {
+				for metricName, expectedExist := range expectedMetricsExist {
+					_, err := et.FindOneMetric(
+						metricName,
+						map[string]string{
+							"name":      cluster.Name,
+							"namespace": cluster.Namespace,
+						},
+					)
+					if expectedExist && err != nil {
+						return err
+					} else if !expectedExist && err == nil {
+						return fmt.Errorf(
+							"expected metric %s not to exist, but it exists",
 							metricName,
-							map[string]string{
-								"name":      cluster.Name,
-								"namespace": cluster.Namespace,
-							},
 						)
-						if expectedExist {
-							if err != nil {
-								return err
-							}
-						} else {
-							if err == nil {
-								return fmt.Errorf(
-									"expected metric %s not to exist, but it exists",
-									metricName,
-								)
-							}
-						}
 					}
 				}
-				return nil
-			}).ShouldNot(HaveOccurred())
-		},
+			}
+			return nil
+		}).ShouldNot(HaveOccurred())
+	},
 	)
 })

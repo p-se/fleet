@@ -1,7 +1,7 @@
 package metrics_test
 
 import (
-	"fmt"
+	"maps"
 	"math/rand"
 	"time"
 
@@ -20,19 +20,25 @@ var _ = Describe("Cluster Metrics", Label("clustergroup"), func() {
 		clusterGroupName string
 	)
 
-	expectedMetricsExist := map[string]bool{
-		"fleet_cluster_group_bundle_desired_ready":         true,
-		"fleet_cluster_group_bundle_ready":                 true,
-		"fleet_cluster_group_cluster_count":                true,
-		"fleet_cluster_group_non_ready_cluster_count":      true,
-		"fleet_cluster_group_resource_count_desired_ready": true,
-		"fleet_cluster_group_resource_count_missing":       true,
-		"fleet_cluster_group_resource_count_modified":      true,
-		"fleet_cluster_group_resource_count_notready":      true,
-		"fleet_cluster_group_resource_count_orphaned":      true,
-		"fleet_cluster_group_resource_count_ready":         true,
-		"fleet_cluster_group_resource_count_unknown":       true,
-		"fleet_cluster_group_resource_count_waitapplied":   true,
+	expectedMetricsExist := map[string]map[string][]string{
+		"fleet_cluster_group_bundle_desired_ready":         {},
+		"fleet_cluster_group_bundle_ready":                 {},
+		"fleet_cluster_group_cluster_count":                {},
+		"fleet_cluster_group_non_ready_cluster_count":      {},
+		"fleet_cluster_group_resource_count_desired_ready": {},
+		"fleet_cluster_group_resource_count_missing":       {},
+		"fleet_cluster_group_resource_count_modified":      {},
+		"fleet_cluster_group_resource_count_notready":      {},
+		"fleet_cluster_group_resource_count_orphaned":      {},
+		"fleet_cluster_group_resource_count_ready":         {},
+		"fleet_cluster_group_resource_count_unknown":       {},
+		"fleet_cluster_group_resource_count_waitapplied":   {},
+		"fleet_cluster_group_state": {
+			"state": {
+				"Ready",
+				"NotReady",
+			},
+		},
 	}
 
 	BeforeEach(func() {
@@ -79,28 +85,32 @@ var _ = Describe("Cluster Metrics", Label("clustergroup"), func() {
 		et := metrics.NewExporterTest(metricsURL)
 
 		Eventually(func() error {
-			for metricName, expectedExist := range expectedMetricsExist {
-				metric, err := et.FindOneMetric(
-					metricName,
-					map[string]string{
-						"name":      clusterGroupName,
-						"namespace": namespace,
-					},
-				)
-				if expectedExist {
+			identityLabels := map[string]string{
+				"name":      clusterGroupName,
+				"namespace": namespace,
+			}
+
+			for metricName, expectedLabels := range expectedMetricsExist {
+				if len(expectedLabels) == 0 {
+					_, err := et.FindOneMetric(metricName, identityLabels)
 					if err != nil {
 						return err
 					}
 					Expect(err).ToNot(HaveOccurred())
 				} else {
-					if err == nil {
-						return fmt.Errorf("expected not to exist but found %s", metric)
+					for labelName, labelValues := range expectedLabels {
+						for _, labelValue := range labelValues {
+							labels := maps.Clone(identityLabels)
+							labels[labelName] = labelValue
+							_, err := et.FindOneMetric(metricName, labels)
+							if err != nil {
+								return err
+							}
+						}
 					}
 				}
 			}
 			return nil
 		}).ShouldNot(HaveOccurred())
-	},
-	)
-
+	})
 })

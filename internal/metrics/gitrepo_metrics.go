@@ -11,11 +11,11 @@ import (
 var (
 	gitRepoSubsystem = "gitrepo"
 	gitRepoLabels    = []string{"name", "namespace", "repo", "branch", "paths"}
-	GitRepoCollector = NewCollectorCollection(
+	GitRepoCollector = CollectorCollection{
 		gitRepoSubsystem,
 		gitRepoMetrics,
 		collectGitRepoMetrics,
-	)
+	}
 	gitRepoMetrics = map[string]prometheus.Collector{
 		"resources_desired_ready": promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -103,7 +103,7 @@ var (
 				Namespace: metricPrefix,
 				Subsystem: gitRepoSubsystem,
 				Name:      "ready_clusters",
-				Help:      "The count of cluster in a Ready state.",
+				Help:      "The count of clusters in a Ready state.",
 			},
 			gitRepoLabels,
 		),

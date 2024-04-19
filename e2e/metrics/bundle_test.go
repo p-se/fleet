@@ -134,6 +134,8 @@ var _ = Describe("Bundle Metrics", Label("bundle"), func() {
 
 		It("should have one metric for each specified metric and label value", func() {
 			Eventually(checkMetrics(gitRepoName+"-simple-manifest", true, func(metric *metrics.Metric) error {
+				// No cluster exists in the namespace where our GitRepo has been deployed, hence
+				// we expect the values of the metrics to be 0.
 				if value := metric.Gauge.GetValue(); value != float64(0) {
 					return fmt.Errorf("unexpected metric value: expected 0, found %f", value)
 				}
@@ -141,8 +143,8 @@ var _ = Describe("Bundle Metrics", Label("bundle"), func() {
 			})).ShouldNot(HaveOccurred())
 		})
 
-		Context("when the GitRepo (and therefore Bundle) is changed", Label("altered"), func() {
-			It("it should not duplicate metrics if Bundle is updated", Label("update"), func() {
+		When("the GitRepo (and therefore Bundle) is changed", Label("bundle-modified"), func() {
+			It("should not duplicate metrics if Bundle is updated", Label("bundle-update"), func() {
 				// et := metrics.NewExporterTest(metricsURL)
 				out, err := kw.Patch(
 					"gitrepo", gitRepoName,
@@ -152,11 +154,6 @@ var _ = Describe("Bundle Metrics", Label("bundle"), func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("gitrepo.fleet.cattle.io/metrics patched"))
 
-				// Wait for it to be changed and fetched.
-				Eventually(func() (string, error) {
-					return kw.Get("gitrepo", gitRepoName, "-o", "jsonpath={.status.commit}")
-				}).ShouldNot(BeEmpty())
-
 				Eventually(checkMetrics(gitRepoName+"-simple-chart", true, func(metric *metrics.Metric) error {
 					if metric.LabelValue("paths") == "simple-manifest" {
 						return fmt.Errorf("path for metric %s unchanged", metric.Metric.String())
@@ -165,19 +162,19 @@ var _ = Describe("Bundle Metrics", Label("bundle"), func() {
 				})).ShouldNot(HaveOccurred())
 			})
 
-			It("should not keep metrics if Bundle is deleted", Label("delete"), func() {
-				objName := gitRepoName + "-simple-manifest"
+			It("should not keep metrics if Bundle is deleted", Label("bundle-delete"), func() {
+				gitRepoName := gitRepoName + "-simple-manifest"
 
 				var (
 					out string
 					err error
 				)
 				Eventually(func() error {
-					out, err = kw.Delete("bundle", objName)
+					out, err = kw.Delete("bundle", gitRepoName)
 					return err
 				}).ShouldNot(HaveOccurred(), out)
 
-				Eventually(checkMetrics(gitRepoName+"-simple-manifest", false, nil)).ShouldNot(HaveOccurred())
+				Eventually(checkMetrics(gitRepoName, false, nil)).ShouldNot(HaveOccurred())
 			})
 		})
 	})

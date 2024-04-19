@@ -165,7 +165,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	updateDisplay(&bundle.Status)
-	metrics.BundleCollector.Collect(bundle)
+
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		t := &fleet.Bundle{}
 		err := r.Get(ctx, req.NamespacedName, t)
@@ -178,6 +178,8 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		logger.V(1).Error(err, "Reconcile failed final update to bundle status", "status", bundle.Status)
 	}
+
+	metrics.BundleCollector.Collect(bundle)
 
 	return ctrl.Result{}, err
 }

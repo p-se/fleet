@@ -93,7 +93,7 @@ var (
 					Namespace: metricPrefix,
 					Subsystem: bundleSubsystem,
 					Name:      "state",
-					Help:      "Shows the state of this bundle based on the state label. A value of 1 is true 0 is false.",
+					Help:      "Shows the state of this bundle based on the state label. A value of 1 is true 0, is false.",
 				},
 				bundleLabels,
 			),
