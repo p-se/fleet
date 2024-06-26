@@ -7,6 +7,7 @@ function k3d-cluster-delete {
         return
     fi
 
+    echo k3d cluster delete "$1"
     k3d cluster delete "$1"
 }
 
@@ -30,8 +31,8 @@ function docker-clean-by-name {
 }
 
 if [[ -n "$FLEET_E2E_CLUSTER" || -n "$FLEET_E2E_CLUSTER_DOWNSTREAM" ]]; then
-    k3d-cluster-delete "$FLEET_E2E_CLUSTER"
-    k3d-cluster-delete "$FLEET_E2E_CLUSTER_DOWNSTREAM"
+    k3d-cluster-delete "${FLEET_E2E_CLUSTER#k3d-}"
+    k3d-cluster-delete "${FLEET_E2E_CLUSTER_DOWNSTREAM#k3d-}"
 
     docker-clean-by-name "$FLEET_E2E_CLUSTER"
     docker-clean-by-name "$FLEET_E2E_CLUSTER_DOWNSTREAM"
@@ -50,7 +51,7 @@ else
         )
 
         for config_var in "${config_vars[@]}"; do
-            k3d-cluster-delete "$config_var"
+            k3d-cluster-delete "${config_var#k3d-}"
             docker-clean-by-name "$config_var"
         done
     done

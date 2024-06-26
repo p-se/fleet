@@ -9,7 +9,7 @@ source dev/setup-cluster-config
 # Cleans with settings sourced, so it should be rather selective.
 ./dev/k3d-act-clean
 
-./dev/setup-k3ds
+./dev/setup-k3ds "${FLEET_E2E_CLUSTER}"
 ./dev/build-fleet
 ./dev/import-images-k3d
 ./dev/setup-fleet-multi-cluster

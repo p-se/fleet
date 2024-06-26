@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-args=${k3d_args---network fleet}
+args=${k3d_args---network ${FLEET_E2E_CLUSTER#k3d-}}
 docker_mirror=${docker_mirror-}
 
 if [ -n "$docker_mirror" ]; then
@@ -22,8 +22,8 @@ fi
 # https://hub.docker.com/r/rancher/k3s/tags
 #args="$args -i docker.io/rancher/k3s:v1.22.15-k3s1"
 
-k3d cluster create upstream --servers 3 --api-port 36443 -p '80:80@server:0' -p '443:443@server:0' --k3s-arg '--tls-san=k3d-upstream-server-0@server:0' $args
-k3d cluster create downstream --servers 1 --api-port 36444 -p '5080:80@server:0' -p '3444:443@server:0' $args
+k3d cluster create "${FLEET_E2E_CLUSTER#k3d-}" --servers 3 --api-port 36443 -p '80:80@server:0' -p '443:443@server:0' --k3s-arg "--tls-san=${FLEET_E2E_CLUSTER}-server-0@server:0" $args
+k3d cluster create "${FLEET_E2E_CLUSTER_DOWNSTREAM#k3d-}" --servers 1 --api-port 36444 -p '5080:80@server:0' -p '3444:443@server:0' $args
 #k3d cluster create downstream2 --servers 1 --api-port 36445 -p '6080:80@server:0' -p '3445:443@server:0' $args
 #k3d cluster create downstream3 --servers 1 --api-port 36446 -p '7080:80@server:0' -p '3446:443@server:0' $args
-kubectl config use-context k3d-upstream
+kubectl config use-context "${FLEET_E2E_CLUSTER}"

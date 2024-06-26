@@ -4,7 +4,7 @@ set -euxo pipefail
 
 args=${k3d_args-}
 docker_mirror=${docker_mirror-}
-name=${1-upstream}
+name=${1-upstream} # TODO refactor to use FLEET_E2E_UPSTREAM
 i=${2-0}
 
 if [ -n "$docker_mirror" ]; then
