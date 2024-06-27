@@ -3,8 +3,10 @@
 set -euxo pipefail
 
 
-public_hostname="${public_hostname-172.18.0.1.sslip.io}"
-cluster_downstream="${cluster_downstream-k3d-downstream}"
+ip=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${FLEET_E2E_CLUSTER}-server-0")
+public_hostname="${public_hostname-${ip}.sslip.io}"
+# public_hostname="${FLEET_E2E_CLUSTER}-server-0"
+cluster_downstream="${FLEET_E2E_CLUSTER_DOWNSTREAM-k3d-downstream}"
 ctx=$(kubectl config current-context)
 
 # hardcoded token, cluster is ephemeral and private

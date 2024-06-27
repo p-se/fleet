@@ -36,6 +36,9 @@ source dev/setup-multi-cluster
 ginkgo e2e/multi-cluster
 ```
 
+If you use a `.env` file to load your configuration automatically, you can omit sourcing the
+`dev/setup-{single,multi}-cluster` scripts and call them directly.
+
 ### Testing changes incrementally
 
 To test changes incrementally, rebuild just one binary, update the image in k3d

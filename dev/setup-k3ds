@@ -4,6 +4,12 @@ set -euxo pipefail
 
 args=${k3d_args---network ${FLEET_E2E_CLUSTER#k3d-}}
 docker_mirror=${docker_mirror-}
+randomize_ports=${randomize_ports-false}
+port_offset=${port_randomized:-0}
+
+if [[ "$randomize_ports" != "false" && -n "$randomize_ports" ]]; then
+  port_offset=$((RANDOM % 1000))
+fi
 
 if [ -n "$docker_mirror" ]; then
   TMP_CONFIG="$(mktemp)"
@@ -22,8 +28,27 @@ fi
 # https://hub.docker.com/r/rancher/k3s/tags
 #args="$args -i docker.io/rancher/k3s:v1.22.15-k3s1"
 
-k3d cluster create "${FLEET_E2E_CLUSTER#k3d-}" --servers 3 --api-port 36443 -p '80:80@server:0' -p '443:443@server:0' --k3s-arg "--tls-san=${FLEET_E2E_CLUSTER}-server-0@server:0" $args
-k3d cluster create "${FLEET_E2E_CLUSTER_DOWNSTREAM#k3d-}" --servers 1 --api-port 36444 -p '5080:80@server:0' -p '3444:443@server:0' $args
+k3d cluster create "${FLEET_E2E_CLUSTER#k3d-}" \
+  --servers 3 \
+  --api-port $((36443 + port_offset)) \
+  -p "$((8080+port_offset)):80@server:0" \
+  -p "$((8443+port_offset)):443@server:0" \
+  --k3s-arg "--tls-san=${FLEET_E2E_CLUSTER}-server-0@server:0" \
+  $args
+
+k3d cluster create "${FLEET_E2E_CLUSTER_DOWNSTREAM#k3d-}" \
+  --servers 1 \
+  --api-port $((36444 + port_offset)) \
+  -p "$((8081+port_offset)):80@server:0" \
+  -p "$((8444+port_offset)):443@server:0" \
+  $args
+
 #k3d cluster create downstream2 --servers 1 --api-port 36445 -p '6080:80@server:0' -p '3445:443@server:0' $args
 #k3d cluster create downstream3 --servers 1 --api-port 36446 -p '7080:80@server:0' -p '3446:443@server:0' $args
+
+# Set context to upstream cluster.
+#
+# Ideally, we would not set the context anywhere but always use the correct
+# context very explicitly when calling kubectl.
+#
 kubectl config use-context "${FLEET_E2E_CLUSTER}"

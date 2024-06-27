@@ -7,7 +7,10 @@ if [ ! -d ./.github/scripts ]; then
   exit 1
 fi
 
-public_hostname="${public_hostname-172.18.0.1.sslip.io}"
+ip=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${FLEET_E2E_CLUSTER}-server-0")
+public_hostname="${public_hostname-${ip}.sslip.io}"
+# public_hostname="${public_hostname-${FLEET_E2E_CLUSTER}-server-0}"
+# public_hostname="${public_hostname-172.18.0.1.sslip.io}"
 upstream_ctx="${FLEET_E2E_CLUSTER-k3d-upstream}"
 downstream_ctx="${FLEET_E2E_CLUSTER_DOWNSTREAM-k3d-downstream}"
 
@@ -49,7 +52,6 @@ kubectl -n cattle-fleet-system rollout status deploy/fleet-controller
 
 ./.github/scripts/wait-for-loadbalancer.sh
 
-export cluster_downstream="$downstream_ctx"
-./.github/scripts/register-downstream-clusters.sh "$public_hostname"
+./.github/scripts/register-downstream-clusters.sh
 
 ./.github/scripts/label-downstream-cluster.sh
