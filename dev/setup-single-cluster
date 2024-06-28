@@ -9,7 +9,12 @@ source ./dev/setup-cluster-config
 # Cleans with settings sourced, so it should be rather selective.
 ./dev/k3d-act-clean
 
+export args="--k3s-arg --flannel-backend=none@server:* --k3s-arg --disable-network-policy"
 ./dev/setup-k3d "${FLEET_E2E_CLUSTER#k3d-}" $(( RANDOM % 10001 ))
+kubectl apply -f https://calico-v3-25.netlify.app/archive/v3.25/manifests/calico.yaml
+
+exit 0
+
 ./dev/build-fleet
 ./dev/import-images-k3d
 ./dev/setup-fleet "${FLEET_E2E_CLUSTER#k3d-}" '[

@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-k8s-api
+  namespace: cattle-fleet-system
+spec:
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.43.0.1/32
+  podSelector:
+    matchLabels:
+      app: gitjob
+  policyTypes:
+  - Egress
