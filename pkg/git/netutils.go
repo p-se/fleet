@@ -4,19 +4,18 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	httpgit "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gossh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/rancher/fleet/internal/config"
 	giturls "github.com/rancher/fleet/pkg/git-urls"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 )
-
-var clientTimeout = time.Duration(30)
 
 // GetAuthFromSecret returns the AuthMethod calculated from the given secret
 // The credentials secret is expected to be either basic-auth or ssh-auth (with extra known_hosts data option)
@@ -97,9 +96,12 @@ func GetHTTPClientFromSecret(creds *corev1.Secret, CABundle []byte, insecureTLSV
 	transport.TLSClientConfig = &tlsConfig
 	transport.TLSClientConfig.InsecureSkipVerify = insecureTLSVerify
 
+	gitClientTimeout := config.Lookup(_, config.DefaultNamespace, "fleet-controller", )
+	log.Printf("(pse) duration:%s", config.Get().GitClientTimeout.Duration)
+
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   clientTimeout * time.Second,
+		Timeout:   config.Get().GitClientTimeout.Duration,
 	}
 	if username != "" || password != "" {
 		client.Transport = &basicRoundTripper{
