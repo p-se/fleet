@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  annotations:
+    meta.helm.sh/release-name: fleet-agent-local
+    meta.helm.sh/release-namespace: cattle-fleet-system
+    objectset.rio.cattle.io/applied: H4sIAAAAAAAA/3xOMW7DMAz8C2fbTew2sbV36NxsRQZKohMVtCSYDArD8N8L1V26dCF4vOPdrTCRokdFMCtgjElRQ4pSYLKf5FRImzmkxqEqUxPSU/BgYGQirfFGUWubkorOmGGrwM30Y3EJE4nilMHEB3MFjJb4X+M7yr1Yd8PgD7Y7HkY72ran4XQ6d8d29O6MXTe8PFNre9eXtIgTgQFPIz5Ya2ROX2XCTklGV/g9o95LyyJKU/mWTK4UottMImA+1u1aQYh/YE7+nZicphnMupUDB7dclkxFA2+/8gpe9+W6bd8BAAD//1M2WZtYAQAA
+    objectset.rio.cattle.io/id: fleet-agent-bootstrap
+  creationTimestamp: "2024-07-01T08:16:02Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    objectset.rio.cattle.io/hash: f399d0b310fbfb28e9667312fdc7a33954e2b8c8
+  name: default-allow-all
+  namespace: cattle-fleet-system
+  resourceVersion: "5780"
+  uid: 88afe290-1f37-4455-9ed0-e3e43317ce8e
+spec:
+  egress:
+  - {}
+  ingress:
+  - {}
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

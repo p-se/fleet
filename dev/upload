@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker save docker.io/rancher/fleet:dev | k3s ctr images import -
+docker save docker.io/rancher/fleet:dev | sudo k3s ctr images import -

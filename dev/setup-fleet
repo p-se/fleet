@@ -3,46 +3,50 @@
 
 set -euxo pipefail
 
-cluster_name=${1-upstream}
-shards_json=${2:-}
+# cluster_name=${1-upstream}
+# shards_json=${2:-}
 
-if [ ! -d ./charts/fleet ]; then
-  echo "please change the current directory to the fleet repo checkout"
-  exit 1
-fi
+# if [ ! -d ./charts/fleet ]; then
+#   echo "please change the current directory to the fleet repo checkout"
+#   exit 1
+# fi
 
 # single cluster
-host=$( docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "k3d-$cluster_name-server-0" )
-ca=$( kubectl config view --flatten -o jsonpath='{.clusters[?(@.name == "k3d-'"$cluster_name"'")].cluster.certificate-authority-data}' | base64 -d )
+# host=$( docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "k3d-$cluster_name-server-0" )
+
+# host=$(ip -json -f inet addr show wlp2s0 | jq -r '.[0].addr_info[0].local')
+host=$(ip -json -f inet addr show enp4s0 | jq -r '.[0].addr_info[0].local')
+ca=$(kubectl config view --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d)
 server="https://$host:6443"
+
 helm -n cattle-fleet-system upgrade --install --create-namespace --wait fleet-crd charts/fleet-crd
 
 # Constructing the shards settings dynamically
 shards_settings=""
-if [ -n "$shards_json" ]; then
-  index=0
-  for shard in $(echo "${shards_json}" | jq -c '.[]'); do
-    shard_id=$(echo "$shard" | jq -r '.id')
-    shards_settings="$shards_settings --set shards[$index].id=$shard_id"
-    node_selector=$(echo "$shard" | jq -r '.nodeSelector // empty')
-    if [ -n "$node_selector" ]; then
-      for key in $(echo "$node_selector" | jq -r 'keys[]'); do
-        value=$(echo "$node_selector" | jq -r --arg key "$key" '.[$key]')
-        escaped_key=$(echo "$key" | sed 's/\./\\./g')
-        shards_settings="$shards_settings --set shards[$index].nodeSelector.\"$escaped_key\"=$value"
-      done
-    fi
-    index=$((index + 1))
-  done
-fi
+# if [ -n "$shards_json" ]; then
+#   index=0
+#   for shard in $(echo "${shards_json}" | jq -c '.[]'); do
+#     shard_id=$(echo "$shard" | jq -r '.id')
+#     shards_settings="$shards_settings --set shards[$index].id=$shard_id"
+#     node_selector=$(echo "$shard" | jq -r '.nodeSelector // empty')
+#     if [ -n "$node_selector" ]; then
+#       for key in $(echo "$node_selector" | jq -r 'keys[]'); do
+#         value=$(echo "$node_selector" | jq -r --arg key "$key" '.[$key]')
+#         escaped_key=$(echo "$key" | sed 's/\./\\./g')
+#         shards_settings="$shards_settings --set shards[$index].nodeSelector.\"$escaped_key\"=$value"
+#       done
+#     fi
+#     index=$((index + 1))
+#   done
+# fi
 
 helm -n cattle-fleet-system upgrade --install --create-namespace --wait --reset-values \
   --set apiServerCA="$ca" \
   --set apiServerURL="$server" \
-  $shards_settings \
-  --set-string extraEnv[0].name=EXPERIMENTAL_OCI_STORAGE \
-  --set-string extraEnv[0].value=true \
   --set debug=true --set debugLevel=1 fleet charts/fleet
+  # $shards_settings \
+  # --set-string extraEnv[0].name=EXPERIMENTAL_OCI_STORAGE \
+  # --set-string extraEnv[0].value=true \
 
 # wait for controller and agent rollout
 kubectl -n cattle-fleet-system rollout status deployment/fleet-controller
