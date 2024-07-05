@@ -17,7 +17,7 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockermount "github.com/docker/docker/api/types/mount"
 	gogit "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
+	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	httpgit "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -30,6 +30,7 @@ import (
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/rancher/fleet/internal/config"
 	"github.com/rancher/fleet/internal/mocks"
 	v1alpha1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"github.com/rancher/fleet/pkg/git"
@@ -111,6 +112,7 @@ func TestLatestCommit_NoAuth(t *testing.T) {
 		},
 	}
 
+	config.Set(&config.Config{GitClientTimeout: metav1.Duration{Duration: 30 * time.Second}})
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			f := git.Fetch{}
@@ -466,7 +468,7 @@ func initRepo(url string, name string, private bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cfg.Remotes["upstream"] = &config.RemoteConfig{
+	cfg.Remotes["upstream"] = &gitconfig.RemoteConfig{
 		Name: "upstream",
 		URLs: []string{repoURL},
 	}
@@ -529,7 +531,7 @@ func addRepoCommitAndTag(url string, name string, tag string, tagMessage string)
 	if err != nil {
 		return "", err
 	}
-	cfg.Remotes["upstream"] = &config.RemoteConfig{
+	cfg.Remotes["upstream"] = &gitconfig.RemoteConfig{
 		Name: "upstream",
 		URLs: []string{url},
 	}
@@ -574,7 +576,7 @@ func addRepoCommitAndTag(url string, name string, tag string, tagMessage string)
 			Username: gogsUser,
 			Password: gogsPass,
 		},
-		RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+		RefSpecs: []gitconfig.RefSpec{gitconfig.RefSpec("refs/tags/*:refs/tags/*")},
 	})
 	if err != nil {
 		return "", nil
