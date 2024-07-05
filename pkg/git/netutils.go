@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	httpgit "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gossh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/rancher/fleet/internal/config"
 	giturls "github.com/rancher/fleet/pkg/git-urls"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
@@ -57,7 +57,7 @@ func GetAuthFromSecret(url string, creds *corev1.Secret) (transport.AuthMethod, 
 
 // GetHTTPClientFromSecret returns a HTTP client filled from the information in the given secret
 // and optional CABundle and insecureTLSVerify
-func GetHTTPClientFromSecret(creds *corev1.Secret, CABundle []byte, insecureTLSVerify bool) (*http.Client, error) {
+func GetHTTPClientFromSecret(creds *corev1.Secret, CABundle []byte, insecureTLSVerify bool, timeout time.Duration) (*http.Client, error) {
 	var (
 		username  string
 		password  string
@@ -97,7 +97,7 @@ func GetHTTPClientFromSecret(creds *corev1.Secret, CABundle []byte, insecureTLSV
 
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   config.Get().GitClientTimeout.Duration,
+		Timeout:   timeout,
 	}
 	if username != "" || password != "" {
 		client.Transport = &basicRoundTripper{
