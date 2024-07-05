@@ -10,6 +10,7 @@ import (
 
 	command "github.com/rancher/fleet/internal/cmd"
 	"github.com/rancher/fleet/internal/cmd/controller/gitops/reconciler"
+	fcreconciler "github.com/rancher/fleet/internal/cmd/controller/reconciler"
 	"github.com/rancher/fleet/internal/metrics"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"github.com/rancher/fleet/pkg/git/poll"
@@ -121,7 +122,7 @@ func (g *GitOperator) Run(cmd *cobra.Command, args []string) error {
 		workers = w
 	}
 
-	reconciler := &reconciler.GitJobReconciler{
+	gitJobReconciler := &reconciler.GitJobReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		Image:     g.Image,
@@ -131,14 +132,25 @@ func (g *GitOperator) Run(cmd *cobra.Command, args []string) error {
 		ShardID:   g.ShardID,
 	}
 
+	configReconciler := &fcreconciler.ConfigReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		SystemNamespace: namespace,
+		ShardID:         g.ShardID,
+	}
+
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		return startWebhook(ctx, namespace, g.Listen, mgr.GetClient(), mgr.GetCache())
 	})
 	group.Go(func() error {
-		setupLog.Info("starting manager")
+		setupLog.Info("starting config manager")
+		if err = configReconciler.SetupWithManager(mgr); err != nil {
+			return err
+		}
 
-		if err = reconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Info("starting gitops manager")
+		if err = gitJobReconciler.SetupWithManager(mgr); err != nil {
 			return err
 		}
 
