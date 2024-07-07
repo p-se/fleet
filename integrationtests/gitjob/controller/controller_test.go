@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rancher/fleet/integrationtests/utils"
+	"github.com/rancher/fleet/internal/config"
 	v1alpha1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"github.com/rancher/wrangler/v3/pkg/name"
 
@@ -43,6 +44,9 @@ var _ = Describe("GitJob controller", func() {
 		)
 
 		JustBeforeEach(func() {
+			config.Set(&config.Config{
+				GitClientTimeout: metav1.Duration{Duration: 10 * time.Second},
+			})
 			gitRepo = createGitRepo(gitRepoName)
 			Expect(k8sClient.Create(ctx, &gitRepo)).ToNot(HaveOccurred())
 			Eventually(func() string {
