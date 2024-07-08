@@ -139,6 +139,11 @@ func (g *GitOperator) Run(cmd *cobra.Command, args []string) error {
 		ShardID:         g.ShardID,
 	}
 
+	if err := fcreconciler.Load(ctx, mgr.GetAPIReader(), namespace); err != nil {
+		setupLog.Error(err, "failed to load config")
+		return err
+	}
+
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		return startWebhook(ctx, namespace, g.Listen, mgr.GetClient(), mgr.GetCache())
