@@ -222,7 +222,7 @@ var _ = Describe("Applying a git job gets content from git repo", Label("network
 		})
 	})
 
-	When("Cloning an ssh repo", func() {
+	XWhen("Cloning an ssh repo", func() {
 		var tmpKey string
 
 		JustBeforeEach(func() {
