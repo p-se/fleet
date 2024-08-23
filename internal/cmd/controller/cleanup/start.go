@@ -3,13 +3,14 @@ package cleanup
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
 	"github.com/rancher/fleet/internal/cmd/controller/cleanup/controllers"
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/leader"
 	"github.com/rancher/wrangler/v3/pkg/ratelimit"
-	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 func start(ctx context.Context, kubeConfig, namespace string) error {

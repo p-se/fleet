@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
-	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
+
+	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 
 	"github.com/rancher/fleet/pkg/version"
 )

@@ -10,10 +10,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/rancher/fleet/internal/bundlereader/progress"
-	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/rancher/fleet/internal/bundlereader/progress"
+	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 
 	"github.com/rancher/wrangler/v3/pkg/data"
 

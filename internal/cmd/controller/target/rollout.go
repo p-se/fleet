@@ -3,9 +3,10 @@ package target
 import (
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/rancher/fleet/internal/cmd/controller/target/matcher"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // partitions distributes targets into partitions based on the rollout strategy (pure function)

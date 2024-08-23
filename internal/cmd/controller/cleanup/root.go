@@ -3,9 +3,10 @@ package cleanup
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	command "github.com/rancher/fleet/internal/cmd"
 	"github.com/rancher/fleet/pkg/version"
-	"github.com/spf13/cobra"
 )
 
 type CleanUp struct {

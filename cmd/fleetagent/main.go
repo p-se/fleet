@@ -6,8 +6,9 @@ import (
 
 	"github.com/rancher/fleet/internal/cmd/agent"
 
-	"github.com/rancher/wrangler/v3/pkg/signals"
 	"github.com/sirupsen/logrus"
+
+	"github.com/rancher/wrangler/v3/pkg/signals"
 )
 
 func main() {

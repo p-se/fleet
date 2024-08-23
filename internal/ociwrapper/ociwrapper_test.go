@@ -21,9 +21,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	orasmemory "oras.land/oras-go/v2/content/memory"
+
 	"github.com/rancher/fleet/internal/manifest"
 	"github.com/rancher/fleet/internal/mocks"
-	orasmemory "oras.land/oras-go/v2/content/memory"
 )
 
 type MockOrasOperator struct {

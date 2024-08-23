@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rancher/wrangler/v3/pkg/genericcondition"
-	"github.com/rancher/wrangler/v3/pkg/summary"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/rancher/wrangler/v3/pkg/genericcondition"
+	"github.com/rancher/wrangler/v3/pkg/summary"
 )
 
 const BundleDeploymentResourceNamePlural = "bundledeployments"

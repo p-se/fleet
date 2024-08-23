@@ -11,9 +11,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	httpgit "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gossh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	giturls "github.com/rancher/fleet/pkg/git-urls"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
+
+	giturls "github.com/rancher/fleet/pkg/git-urls"
 )
 
 // GetAuthFromSecret returns the AuthMethod calculated from the given secret

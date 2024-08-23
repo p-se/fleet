@@ -18,8 +18,6 @@ import (
 	fleetv1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"github.com/rancher/wrangler/v3/pkg/genericcondition"
 
-	fleetevent "github.com/rancher/fleet/pkg/event"
-	gitmocks "github.com/rancher/fleet/pkg/git/mocks"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	fleetevent "github.com/rancher/fleet/pkg/event"
+	gitmocks "github.com/rancher/fleet/pkg/git/mocks"
 )
 
 func getCondition(gitrepo *fleetv1.GitRepo, condType string) (genericcondition.GenericCondition, bool) {

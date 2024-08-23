@@ -9,9 +9,10 @@ import (
 	gossh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rancher/fleet/pkg/git"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/rancher/fleet/pkg/git"
 )
 
 const gitClientTimeout = time.Second * 30

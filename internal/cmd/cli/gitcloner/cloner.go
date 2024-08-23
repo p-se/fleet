@@ -10,10 +10,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	httpgit "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gossh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
-
-	giturls "github.com/rancher/fleet/pkg/git-urls"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+
+	giturls "github.com/rancher/fleet/pkg/git-urls"
 )
 
 const defaultBranch = "master"

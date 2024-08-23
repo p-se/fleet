@@ -1,10 +1,11 @@
 package kustomize
 
 import (
-	"github.com/rancher/wrangler/v3/pkg/data"
-	"github.com/rancher/wrangler/v3/pkg/summary"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/cli-utils/pkg/kstatus/status"
+
+	"github.com/rancher/wrangler/v3/pkg/data"
+	"github.com/rancher/wrangler/v3/pkg/summary"
 )
 
 func init() {

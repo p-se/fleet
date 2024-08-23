@@ -13,8 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1alpha1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	gomock "go.uber.org/mock/gomock"
+
+	v1alpha1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 )
 
 // MockGitPoller is a mock of GitPoller interface.

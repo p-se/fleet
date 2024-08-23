@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/rancher/fleet/internal/cmd/agent/controller"
 	"github.com/rancher/fleet/internal/cmd/agent/deployer"
 	"github.com/rancher/fleet/internal/cmd/agent/deployer/applied"

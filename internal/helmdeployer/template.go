@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/rancher/fleet/internal/manifest"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 

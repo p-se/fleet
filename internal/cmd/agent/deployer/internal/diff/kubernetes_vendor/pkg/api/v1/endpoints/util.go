@@ -22,8 +22,9 @@ import (
 	"hash"
 	"sort"
 
-	hashutil "github.com/rancher/fleet/internal/cmd/agent/deployer/internal/diff/kubernetes_vendor/pkg/util/hash"
 	v1 "k8s.io/api/core/v1"
+
+	hashutil "github.com/rancher/fleet/internal/cmd/agent/deployer/internal/diff/kubernetes_vendor/pkg/util/hash"
 )
 
 // LessEndpointAddress compares IP addresses lexicographically and returns true if first argument is lesser than second

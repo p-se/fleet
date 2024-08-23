@@ -1,9 +1,10 @@
 package v1alpha1
 
 import (
-	"github.com/rancher/wrangler/v3/pkg/genericcondition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/wrangler/v3/pkg/genericcondition"
 )
 
 func init() {

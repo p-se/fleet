@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/jpillora/backoff"
-	"github.com/rancher/fleet/internal/client"
 	"github.com/sirupsen/logrus"
+
+	"github.com/rancher/fleet/internal/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

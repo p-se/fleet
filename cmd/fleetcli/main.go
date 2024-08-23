@@ -12,8 +12,9 @@ import (
 	// Add non-default auth providers
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/rancher/wrangler/v3/pkg/signals"
 	"github.com/sirupsen/logrus"
+
+	"github.com/rancher/wrangler/v3/pkg/signals"
 
 	cmds "github.com/rancher/fleet/internal/cmd/cli"
 )

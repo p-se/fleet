@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+
 	"github.com/rancher/fleet/internal/cmd/controller/finalize"
 	"github.com/rancher/fleet/internal/cmd/controller/summary"
 	"github.com/rancher/fleet/internal/cmd/controller/target"

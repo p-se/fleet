@@ -13,9 +13,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	v1alpha1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	gomock "go.uber.org/mock/gomock"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1alpha1 "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 )
 
 // MockGitFetcher is a mock of GitFetcher interface.

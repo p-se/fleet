@@ -7,11 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rancher/fleet/internal/cmd/controller/summary"
-	"github.com/rancher/fleet/internal/metrics"
-	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
-	"github.com/rancher/wrangler/v3/pkg/condition"
-	"github.com/rancher/wrangler/v3/pkg/kstatus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -21,10 +16,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 
-	fleetutil "github.com/rancher/fleet/internal/cmd/controller/errorutil"
+	"github.com/rancher/fleet/internal/cmd/controller/summary"
+	"github.com/rancher/fleet/internal/metrics"
+	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
+	"github.com/rancher/wrangler/v3/pkg/condition"
+	"github.com/rancher/wrangler/v3/pkg/kstatus"
+
 	errutil "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/cli-utils/pkg/kstatus/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	fleetutil "github.com/rancher/fleet/internal/cmd/controller/errorutil"
 )
 
 func SetStatusFromBundles(ctx context.Context, c client.Client, gitrepo *fleet.GitRepo) error {

@@ -17,13 +17,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/hashicorp/go-getter"
-	"github.com/rancher/fleet/internal/content"
-	"github.com/rancher/fleet/internal/helmupdater"
-	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
+
+	"github.com/rancher/fleet/internal/content"
+	"github.com/rancher/fleet/internal/helmupdater"
+	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 )
 
 // ignoreTree represents a tree of ignored paths (read from .fleetignore files), each node being a directory.

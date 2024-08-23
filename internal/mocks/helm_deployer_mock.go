@@ -13,9 +13,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	helmdeployer "github.com/rancher/fleet/internal/helmdeployer"
 	gomock "go.uber.org/mock/gomock"
 	action "helm.sh/helm/v3/pkg/action"
+
+	helmdeployer "github.com/rancher/fleet/internal/helmdeployer"
 )
 
 // MockHelmDeployer is a mock of HelmDeployer interface.

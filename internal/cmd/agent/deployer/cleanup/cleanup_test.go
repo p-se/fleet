@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rancher/fleet/internal/helmdeployer"
-	"github.com/rancher/fleet/internal/mocks"
-	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/rancher/fleet/internal/helmdeployer"
+	"github.com/rancher/fleet/internal/mocks"
+	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 )
 
 func TestCleanupReleases(t *testing.T) {

@@ -13,11 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rancher/fleet/e2e/testenv"
-	"github.com/rancher/fleet/e2e/testenv/kubectl"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
 	"helm.sh/helm/v3/pkg/registry"
+
+	"github.com/rancher/fleet/e2e/testenv"
+	"github.com/rancher/fleet/e2e/testenv/kubectl"
 )
 
 var timeoutDuration = 10 * time.Minute // default timeout duration

@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+
 	v1alpha1 "github.com/rancher/fleet/pkg/generated/controllers/fleet.cattle.io/v1alpha1"
 )
 

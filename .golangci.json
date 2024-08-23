@@ -3,6 +3,9 @@
     "timeout": "20s"
   },
   "linters-settings": {
+    "goimports": {
+      "local-prefixes": "github.com/rancher"
+    },
     "revive": {
       "rules": [
         {

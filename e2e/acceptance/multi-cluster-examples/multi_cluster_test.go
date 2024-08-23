@@ -3,9 +3,10 @@ package mc_examples_test
 import (
 	"encoding/json"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/rancher/fleet/e2e/testenv"
 	"github.com/rancher/fleet/e2e/testenv/kubectl"
-	appsv1 "k8s.io/api/apps/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

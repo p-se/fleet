@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"k8s.io/apimachinery/pkg/util/uuid"
+
 	"github.com/rancher/fleet/e2e/testenv"
 	"github.com/rancher/fleet/e2e/testenv/githelper"
 	"github.com/rancher/fleet/e2e/testenv/kubectl"
-	"k8s.io/apimachinery/pkg/util/uuid"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

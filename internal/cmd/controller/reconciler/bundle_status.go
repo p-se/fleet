@@ -3,10 +3,11 @@ package reconciler
 import (
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/rancher/fleet/internal/cmd/controller/summary"
 	"github.com/rancher/fleet/internal/cmd/controller/target"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
-	"github.com/sirupsen/logrus"
 )
 
 const (

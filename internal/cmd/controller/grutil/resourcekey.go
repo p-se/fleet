@@ -6,9 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func SetStatusFromResourceKey(ctx context.Context, c client.Client, gitrepo *fleet.GitRepo) {

@@ -6,8 +6,9 @@ import (
 
 	"helm.sh/helm/v3/pkg/chart"
 
-	"github.com/rancher/wrangler/v3/pkg/yaml"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/rancher/wrangler/v3/pkg/yaml"
 )
 
 const (

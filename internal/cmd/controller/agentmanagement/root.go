@@ -5,10 +5,11 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/spf13/cobra"
+
 	command "github.com/rancher/fleet/internal/cmd"
 	"github.com/rancher/fleet/internal/cmd/controller/agentmanagement/agent"
 	"github.com/rancher/fleet/pkg/version"
-	"github.com/spf13/cobra"
 )
 
 type AgentManagement struct {

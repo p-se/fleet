@@ -19,9 +19,10 @@ limitations under the License.
 package fleet
 
 import (
+	"k8s.io/client-go/rest"
+
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/wrangler/v3/pkg/generic"
-	"k8s.io/client-go/rest"
 )
 
 type Factory struct {

@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rancher/fleet/internal/helmdeployer/helmcache"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
+
+	"github.com/rancher/fleet/internal/helmdeployer/helmcache"
 
 	name2 "github.com/rancher/fleet/internal/name"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
