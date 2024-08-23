@@ -11,16 +11,18 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/rancher/wrangler/v3/pkg/apply"
-	"github.com/rancher/wrangler/v3/pkg/condition"
-	"github.com/rancher/wrangler/v3/pkg/objectset"
-	"github.com/rancher/wrangler/v3/pkg/summary"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/rancher/wrangler/v3/pkg/apply"
+	"github.com/rancher/wrangler/v3/pkg/condition"
+	"github.com/rancher/wrangler/v3/pkg/objectset"
+	"github.com/rancher/wrangler/v3/pkg/summary"
 
 	"github.com/rancher/fleet/internal/cmd/agent/deployer/applied"
 	"github.com/rancher/fleet/internal/helmdeployer"
@@ -271,13 +273,18 @@ func modified(c client.Client, plan apply.Plan, resourcesPreviousRelease *helmde
 			}
 			err := c.Get(context.Background(), key, obj)
 
+			exists := true
+			if apierrors.IsNotFound(err) {
+				exists = false
+			}
+
 			result = append(result, fleet.ModifiedStatus{
 				Kind:       kind,
 				APIVersion: apiVersion,
 				Namespace:  key.Namespace,
 				Name:       key.Name,
 				Create:     true,
-				Exist:      err == nil,
+				Exist:      exists,
 			})
 		}
 	}
