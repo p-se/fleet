@@ -909,6 +909,10 @@ spec:
                       delete:
                         type: boolean
                       exist:
+                        description: Exist is true if the resource exists but is not
+                          owned by us. This can happen if a resource was adopted by
+                          another bundle whereas the first bundle still exists and
+                          due to that reports that it does not own it.
                         type: boolean
                       kind:
                         nullable: true
@@ -2737,6 +2741,12 @@ spec:
                                       delete:
                                         type: boolean
                                       exist:
+                                        description: Exist is true if the resource
+                                          exists but is not owned by us. This can
+                                          happen if a resource was adopted by another
+                                          bundle whereas the first bundle still exists
+                                          and due to that reports that it does not
+                                          own it.
                                         type: boolean
                                       kind:
                                         nullable: true
@@ -2955,6 +2965,11 @@ spec:
                                 delete:
                                   type: boolean
                                 exist:
+                                  description: Exist is true if the resource exists
+                                    but is not owned by us. This can happen if a resource
+                                    was adopted by another bundle whereas the first
+                                    bundle still exists and due to that reports that
+                                    it does not own it.
                                   type: boolean
                                 kind:
                                   nullable: true
@@ -3389,6 +3404,11 @@ spec:
                                 delete:
                                   type: boolean
                                 exist:
+                                  description: Exist is true if the resource exists
+                                    but is not owned by us. This can happen if a resource
+                                    was adopted by another bundle whereas the first
+                                    bundle still exists and due to that reports that
+                                    it does not own it.
                                   type: boolean
                                 kind:
                                   nullable: true
@@ -5785,6 +5805,11 @@ spec:
                                 delete:
                                   type: boolean
                                 exist:
+                                  description: Exist is true if the resource exists
+                                    but is not owned by us. This can happen if a resource
+                                    was adopted by another bundle whereas the first
+                                    bundle still exists and due to that reports that
+                                    it does not own it.
                                   type: boolean
                                 kind:
                                   nullable: true
@@ -6749,6 +6774,11 @@ spec:
                                 delete:
                                   type: boolean
                                 exist:
+                                  description: Exist is true if the resource exists
+                                    but is not owned by us. This can happen if a resource
+                                    was adopted by another bundle whereas the first
+                                    bundle still exists and due to that reports that
+                                    it does not own it.
                                   type: boolean
                                 kind:
                                   nullable: true
