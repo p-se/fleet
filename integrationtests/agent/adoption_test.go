@@ -2,9 +2,11 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -75,11 +77,7 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 		}).Should(Succeed())
 	}
 
-	createConfigMap := func(
-		data map[string]string,
-		labels map[string]string,
-		annotations map[string]string,
-	) *corev1.ConfigMap {
+	createConfigMap := func(data, labels, annotations map[string]string) *corev1.ConfigMap {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "cm1",
@@ -94,7 +92,9 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 		return cm
 	}
 
-	configMapValidates := func(validate func(corev1.ConfigMap) bool) {
+	// assertConfigMap checks that the ConfigMap exists and that it passes the
+	// provided validate function.
+	assertConfigMap := func(validate func(corev1.ConfigMap) bool) {
 		cm := corev1.ConfigMap{}
 		Eventually(func() bool {
 			err := k8sClient.Get(
@@ -106,35 +106,111 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 				return false
 			}
 			return validate(cm)
-		}).Should(BeTrue())
+		}).Should(BeTrue(), "ConfigMap does not match expected state: %+v", cm)
+	}
+
+	// assertBundleDeployment checks that the BundleDeployment exists and that it
+	// passes the provided validate function.
+	assertBundleDeployment := func(name string, validate func(*v1alpha1.BundleDeployment) error) {
+		bd := v1alpha1.BundleDeployment{}
+		Eventually(func() error {
+			err := k8sClient.Get(
+				ctx,
+				types.NamespacedName{Namespace: clusterNS, Name: name},
+				&bd,
+			)
+			if err != nil {
+				return err
+			}
+			return validate(&bd)
+		}).Should(Succeed(), "BundleDeployment does not match expected state: %+v", bd)
+	}
+
+	// mapPartialMatch checks that the super map contains all the keys and values
+	// of the sub map. If the value in the sub map is an empty string, the key
+	// must exist in the super map but the value is not compared.
+	// TODO make it return an error to provide better feedback
+	mapPartialMatch := func(super, sub map[string]string) bool {
+		for k, v := range sub {
+			if v == "" {
+				if _, ok := super[k]; !ok {
+					return false
+				}
+			} else {
+				if v2, ok := super[k]; !ok || v2 != v {
+					return false
+				}
+			}
+		}
+		return true
 	}
 
 	// configMapAdoptedAndMerged checks that the ConfigMap is adopted. It may
 	// need to be extended to check for more labels and annotations.
-	configMapIsAdopted := func(cm *corev1.ConfigMap) bool {
-		expectedAnnotations := []string{
-			"meta.helm.sh/release-name",
-			"meta.helm.sh/release-namespace",
-		}
-		for _, annotation := range expectedAnnotations {
-			if _, ok := cm.Annotations[annotation]; !ok {
-				return false
-			}
-		}
-
-		if v, ok := cm.Labels["app.kubernetes.io/managed-by"]; !ok || v != "Helm" {
-			return false
-		}
-		return true
+	isConfigMapAdopted := func(cm *corev1.ConfigMap) bool {
+		spew.Dump("==> Labels", cm.Labels)
+		spew.Dump("==> Annotations", cm.Annotations)
+		return mapPartialMatch(cm.Labels, map[string]string{
+			"app.kubernetes.io/managed-by": "Helm",
+		}) && mapPartialMatch(cm.Annotations, map[string]string{
+			"meta.helm.sh/release-name":      "",
+			"meta.helm.sh/release-namespace": "",
+		})
 	}
 
-	configMapDataEquals := func(cm *corev1.ConfigMap, data map[string]string) bool {
-		for k, v := range data {
-			if v2, ok := cm.Data[k]; !ok || v2 != v {
-				return false
+	changeConfigMap := func(name string, change func(*corev1.ConfigMap)) {
+		cm := &corev1.ConfigMap{}
+		Eventually(func() error {
+			return k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, cm)
+		}).Should(Succeed())
+		change(cm)
+		Eventually(func() error {
+			return k8sClient.Update(ctx, cm)
+		}).Should(Succeed())
+	}
+
+	deleteConfigMap := func(name string) {
+		cm := &corev1.ConfigMap{}
+		Eventually(func() error {
+			return k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, cm)
+		}).Should(Succeed())
+		Eventually(func() error {
+			return k8sClient.Delete(ctx, cm)
+		}).Should(Succeed())
+	}
+
+	bundleDeploymentResourceMissing := func(bd *v1alpha1.BundleDeployment) error {
+		for _, condition := range bd.Status.Conditions {
+			if condition.Type == v1alpha1.BundleDeploymentConditionReady &&
+				condition.Status == corev1.ConditionFalse &&
+				condition.Reason == "Error" &&
+				strings.Contains(condition.Message, "missing") {
+				return nil
 			}
 		}
-		return true
+		return fmt.Errorf("does not match expected condition")
+	}
+
+	bundleDeploymentNotOwnedByUs := func(bd *v1alpha1.BundleDeployment) error {
+		for _, condition := range bd.Status.Conditions {
+			if condition.Type == v1alpha1.BundleDeploymentConditionReady &&
+				condition.Status == corev1.ConditionFalse &&
+				condition.Reason == "Error" &&
+				strings.Contains(condition.Message, "not owned by us") {
+				return nil
+			}
+		}
+		return fmt.Errorf("does not match expected condition")
+	}
+
+	bundleDeploymentReady := func(bd *v1alpha1.BundleDeployment) error {
+		for _, condition := range bd.Status.Conditions {
+			if condition.Type == v1alpha1.BundleDeploymentConditionReady &&
+				condition.Status == corev1.ConditionTrue {
+				return nil
+			}
+		}
+		return fmt.Errorf("does not match expected condition")
 	}
 
 	BeforeEach(func() {
@@ -146,16 +222,53 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 		env = &specEnv{namespace: namespace}
 	})
 
+	When("a resource of a bundle deployment is removed", Label("remove-resource"), func() {
+		It("should report the deleted resource as missing", func() {
+			createBundleDeployment("remove-resource", false)
+			assertConfigMap(func(cm corev1.ConfigMap) bool {
+				return mapPartialMatch(cm.Data, map[string]string{"key": "value"}) &&
+					mapPartialMatch(cm.Annotations, map[string]string{
+						"meta.helm.sh/release-name":      "remove-resource",
+						"meta.helm.sh/release-namespace": "",
+						"objectset.rio.cattle.io/id":     "default-remove-resource",
+					}) && mapPartialMatch(cm.Labels, map[string]string{
+					"app.kubernetes.io/managed-by": "Helm",
+					"objectset.rio.cattle.io/hash": "ca7682543199bb801d0c14587a1158d936508160",
+				})
+			})
+			deleteConfigMap("cm1")
+			assertBundleDeployment("remove-resource", bundleDeploymentResourceMissing)
+		})
+	})
+
+	When("all labels of a resource of a bundle deployment are removed", Label("remove-labels"), func() {
+		It("should report that resource as \"not owned by us\"", func() {
+			createBundleDeployment("remove-metadata", false)
+			assertConfigMap(func(cm corev1.ConfigMap) bool {
+				return mapPartialMatch(cm.Data, map[string]string{"key": "value"}) &&
+					mapPartialMatch(cm.Annotations, map[string]string{
+						"meta.helm.sh/release-name":      "remove-metadata",
+						"meta.helm.sh/release-namespace": "",
+						"objectset.rio.cattle.io/id":     "default-remove-metadata",
+					}) && mapPartialMatch(cm.Labels, map[string]string{
+					"app.kubernetes.io/managed-by": "Helm",
+					"objectset.rio.cattle.io/hash": "0f3e1d9d146fa8b290c0de403881184751430e59",
+				})
+			})
+			changeConfigMap("cm1", func(cm *corev1.ConfigMap) {
+				cm.Labels = map[string]string{}
+			})
+			assertBundleDeployment("remove-metadata", bundleDeploymentNotOwnedByUs)
+		})
+	})
+
 	When("a bundle deployment adopts a \"clean\" resource", Label("clean"), func() {
 		It("verifies that the ConfigMap is adopted and its content merged", func() {
 			createConfigMap(map[string]string{"foo": "bar"}, nil, nil)
 			createBundleDeployment("adopt-clean", true)
-			configMapValidates(func(cm corev1.ConfigMap) bool {
-				return configMapIsAdopted(&cm) &&
-					configMapDataEquals(&cm, map[string]string{
-						"foo": "bar",
-						"key": "value",
-					})
+			assertConfigMap(func(cm corev1.ConfigMap) bool {
+				return isConfigMapAdopted(&cm) &&
+					mapPartialMatch(cm.Data, map[string]string{"foo": "bar", "key": "value"})
 			})
 		})
 	})
@@ -164,20 +277,13 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 		It("verifies that the ConfigMap is adopted and its content merged", func() {
 			createConfigMap(
 				map[string]string{"foo": "bar"},
-				map[string]string{
-					"objectset.rio.cattle.io/hash": "33ed67317c57ea78702e369c4c025f8df88553cc",
-				},
-				map[string]string{
-					"objectset.rio.cattle.io/id": "some-assumed-old-id",
-				},
+				map[string]string{"objectset.rio.cattle.io/hash": "33ed67317c57ea78702e369c4c025f8df88553cc"},
+				map[string]string{"objectset.rio.cattle.io/id": "some-assumed-old-id"},
 			)
 			createBundleDeployment("adopt-wrangler-metadata", true)
-			configMapValidates(func(cm corev1.ConfigMap) bool {
-				return configMapIsAdopted(&cm) &&
-					configMapDataEquals(&cm, map[string]string{
-						"foo": "bar",
-						"key": "value",
-					})
+			assertConfigMap(func(cm corev1.ConfigMap) bool {
+				return isConfigMapAdopted(&cm) &&
+					mapPartialMatch(cm.Data, map[string]string{"foo": "bar", "key": "value"})
 			})
 		})
 	})
@@ -190,12 +296,9 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 				map[string]string{"objectset.rio.cattle.io/id": "$#@"},
 			)
 			createBundleDeployment("adopt-invalid-wrangler-metadata", true)
-			configMapValidates(func(cm corev1.ConfigMap) bool {
-				return configMapIsAdopted(&cm) &&
-					configMapDataEquals(&cm, map[string]string{
-						"foo": "bar",
-						"key": "value",
-					})
+			assertConfigMap(func(cm corev1.ConfigMap) bool {
+				return isConfigMapAdopted(&cm) &&
+					mapPartialMatch(cm.Data, map[string]string{"foo": "bar", "key": "value"})
 			})
 		})
 	})
@@ -208,12 +311,9 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 				map[string]string{"bar": "xzy"},
 			)
 			createBundleDeployment("adopt-random-metadata", true)
-			configMapValidates(func(cm corev1.ConfigMap) bool {
-				return configMapIsAdopted(&cm) &&
-					configMapDataEquals(&cm, map[string]string{
-						"foo": "bar",
-						"key": "value",
-					})
+			assertConfigMap(func(cm corev1.ConfigMap) bool {
+				return isConfigMapAdopted(&cm) &&
+					mapPartialMatch(cm.Data, map[string]string{"foo": "bar", "key": "value"})
 			})
 		})
 	})
@@ -223,27 +323,8 @@ var _ = Describe("Adoption", Ordered, Label("adopt"), func() {
 			createBundleDeployment("one", false)
 			waitForConfigMap("cm1")
 			createBundleDeployment("two", true)
-
-			bd1 := &v1alpha1.BundleDeployment{}
-			bd2 := &v1alpha1.BundleDeployment{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Namespace: clusterNS, Name: "one"}, bd1)
-				if err != nil {
-					return false
-				}
-				err = k8sClient.Get(ctx, types.NamespacedName{Namespace: clusterNS, Name: "two"}, bd2)
-				if err != nil {
-					return false
-				}
-
-				if !bd1.Status.Ready || !bd2.Status.Ready ||
-					bd1.Status.NonModified || !bd2.Status.NonModified ||
-					strings.Contains(bd1.Status.ModifiedStatus[0].String(), "now owned by us") {
-					return false
-				}
-
-				return true
-			}).Should(BeTrue())
+			assertBundleDeployment("one", bundleDeploymentNotOwnedByUs)
+			assertBundleDeployment("two", bundleDeploymentReady)
 		})
 	})
 })
