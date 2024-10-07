@@ -10,9 +10,17 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/sirupsen/logrus"
+
+	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
+	"github.com/rancher/wrangler/v3/pkg/yaml"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	"github.com/rancher/fleet/internal/bundlereader"
 	"github.com/rancher/fleet/internal/client"
@@ -20,16 +28,6 @@ import (
 	"github.com/rancher/fleet/internal/manifest"
 	name2 "github.com/rancher/fleet/internal/name"
 	"github.com/rancher/fleet/internal/ociwrapper"
-	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
-
-	"github.com/rancher/wrangler/v3/pkg/yaml"
-
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 )
 
 var (
@@ -72,9 +70,9 @@ type Options struct {
 }
 
 func globDirs(baseDir string) (result []string, err error) {
-	for strings.HasPrefix(baseDir, "/") {
-		baseDir = baseDir[1:]
-	}
+	// for strings.HasPrefix(baseDir, "/") {
+	// 	baseDir = baseDir[1:]
+	// }
 	paths, err := filepath.Glob(baseDir)
 	if err != nil {
 		return nil, err

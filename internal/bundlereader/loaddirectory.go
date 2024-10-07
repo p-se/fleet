@@ -17,13 +17,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/hashicorp/go-getter"
-	"github.com/rancher/fleet/internal/content"
-	"github.com/rancher/fleet/internal/helmupdater"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/downloader"
 	helmgetter "helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/registry"
+
+	"github.com/rancher/fleet/internal/content"
+	"github.com/rancher/fleet/internal/helmupdater"
 )
 
 // ignoreTree represents a tree of ignored paths (read from .fleetignore files), each node being a directory.
@@ -330,7 +331,13 @@ func downloadOCIChart(name, version, path string, auth Auth) (string, error) {
 		return "", err
 	}
 
-	registryClient, err = registry.NewClient()
+	// registry.ClientOptPlainHTTP() is required here for downloading the chart
+	// using `helm apply`. Interestingly, it is not sufficient to set the
+	// `plainHTTP` option in the registry client. For successfully fetching helm
+	// charts without TLS, the `plainHTTP` option must also be set in the
+	// options of the ChartDownloader.
+	registryClient, err = registry.NewClient(registry.ClientOptPlainHTTP())
+	fmt.Println("PSE: registryClient with plain HTTP")
 	if err != nil {
 		return "", err
 	}
@@ -339,6 +346,7 @@ func downloadOCIChart(name, version, path string, auth Auth) (string, error) {
 	// so it is necessary to login before via Helm which stores the registry token in a configuration
 	// file on the system
 	addr := url.Hostname()
+	fmt.Printf("PSE: requiresLogin: %v\n", requiresLogin)
 	if requiresLogin {
 		if port := url.Port(); port != "" {
 			addr = fmt.Sprintf("%s:%s", addr, port)
@@ -346,7 +354,7 @@ func downloadOCIChart(name, version, path string, auth Auth) (string, error) {
 
 		err = registryClient.Login(
 			addr,
-			registry.LoginOptInsecure(false),
+			registry.LoginOptInsecure(true),
 			registry.LoginOptBasicAuth(auth.Username, auth.Password),
 		)
 		if err != nil {
@@ -358,8 +366,10 @@ func downloadOCIChart(name, version, path string, auth Auth) (string, error) {
 		Verify:         downloader.VerifyNever,
 		Getters:        helmgetter.All(&cli.EnvSettings{}),
 		RegistryClient: registryClient,
+		Options:        []helmgetter.Option{helmgetter.WithPlainHTTP(true)},
 	}
 
+	fmt.Println("PSE: Downloading chart")
 	saved, _, err := c.DownloadTo(name, version, path)
 	if err != nil {
 		return "", fmt.Errorf("helm chart download: %w", err)

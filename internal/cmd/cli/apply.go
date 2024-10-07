@@ -9,13 +9,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/apimachinery/pkg/util/yaml"
+
 	"github.com/rancher/fleet/internal/bundlereader"
 	"github.com/rancher/fleet/internal/client"
 	command "github.com/rancher/fleet/internal/cmd"
 	"github.com/rancher/fleet/internal/cmd/cli/apply"
 	"github.com/rancher/fleet/internal/cmd/cli/writer"
-
-	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 type readFile func(name string) ([]byte, error)
@@ -54,7 +54,7 @@ type Apply struct {
 	OCIReference                string            `usage:"OCI registry reference" name:"oci-reference"`
 	OCIUsername                 string            `usage:"Basic auth username for OCI registry" env:"OCI_USERNAME"`
 	OCIPasswordFile             string            `usage:"Path of file containing basic auth password for OCI registry" name:"oci-password-file"`
-	OCIBasicHTTP                bool              `usage:"Use HTTP to access the OCI regustry" name:"oci-basic-http"`
+	OCIBasicHTTP                bool              `usage:"Use HTTP to access the OCI registry" name:"oci-basic-http"`
 	OCIInsecure                 bool              `usage:"Allow connections to OCI registry without certs" name:"oci-insecure"`
 }
 

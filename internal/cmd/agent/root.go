@@ -8,12 +8,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/rancher/fleet/pkg/version"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	command "github.com/rancher/fleet/internal/cmd"
-	"github.com/rancher/fleet/pkg/version"
 )
 
 type UpstreamOptions struct {
