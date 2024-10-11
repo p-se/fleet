@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rancher/fleet/internal/helmdeployer/helmcache"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
 
+	"github.com/rancher/fleet/internal/helmdeployer/helmcache"
 	"github.com/rancher/fleet/internal/names"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 
@@ -146,11 +146,17 @@ func (h *Helm) getCfg(ctx context.Context, namespace, serviceAccountName string)
 
 	kClient := kube.New(getter)
 	kClient.Namespace = namespace
+	// TODO we may need to put that behind a feature flag, too, as it might mess with the user's setup
+	// Or we try to be smart and only set it to true if we're adopting resources.
+	// Or we set it to true always and extend the release notes.
+	kClient.UseThreeWayMergePatchForUnstructured = true
+
+	// TODO what is this value being used for?
+	cfg.UseThreeWayMergePatchForUnstructured = true
 
 	cfg, err = h.createCfg(ctx, namespace)
 	cfg.Releases.MaxHistory = MaxHelmHistory
 	cfg.KubeClient = kClient
-
 	cfg.Capabilities, _ = getCapabilities(cfg)
 
 	return cfg, err
