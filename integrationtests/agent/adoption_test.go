@@ -314,6 +314,10 @@ func (e adoptEnv) createCRD() {
 	e.waitForCRD("datas.crd.com")
 }
 
+func(e adoptEnv) createDataCR() {
+	
+}
+
 // assertConfigMap checks that the ConfigMap exists and that it passes the
 // provided validate function.
 func (e adoptEnv) assertConfigMap(validate func(Gomega, corev1.ConfigMap)) {
