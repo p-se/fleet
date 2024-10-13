@@ -16,6 +16,7 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/genericcondition"
 
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -297,6 +298,20 @@ func (se specEnv) getConfigMap(name string) (corev1.ConfigMap, error) {
 	}
 
 	return cm, nil
+}
+
+func (se specEnv) getCRD(name string) (apiextensionsv1.CustomResourceDefinition, error) {
+	nsn := types.NamespacedName{
+		Name:      name,
+		Namespace: se.namespace,
+	}
+	crd := apiextensionsv1.CustomResourceDefinition{}
+	err := k8sClient.Get(ctx, nsn, &crd)
+	if err != nil {
+		return apiextensionsv1.CustomResourceDefinition{}, err
+	}
+
+	return crd, nil
 }
 
 func checkCondition(conditions []genericcondition.GenericCondition, conditionType string, status string, message string) bool {
