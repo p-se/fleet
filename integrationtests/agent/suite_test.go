@@ -19,6 +19,8 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
@@ -312,6 +314,40 @@ func (se specEnv) getCRD(name string) (apiextensionsv1.CustomResourceDefinition,
 	}
 
 	return crd, nil
+}
+
+func (se specEnv) waitForCustomResource(gvk schema.GroupVersionKind, name string) (unstructured.Unstructured) {
+	nsn := types.NamespacedName{
+		Name:      name,
+		Namespace: se.namespace,
+	}
+	cr := unstructured.Unstructured{}
+	cr.SetGroupVersionKind(gvk)
+
+	Eventually(func() error {
+		return k8sClient.Get(ctx, nsn, &cr)
+	}, timeout).Should(Succeed())
+
+	return cr
+}
+
+func (se specEnv) getCustomResource(name string) (unstructured.Unstructured, error) {
+	nsn := types.NamespacedName{
+		Name:      name,
+		Namespace: se.namespace,
+	}
+	cr := unstructured.Unstructured{}
+	cr.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "crd.com",
+		Version: "v1",
+		Kind:    "Data",
+	})
+	err := k8sClient.Get(ctx, nsn, &cr)
+	if err != nil {
+		return cr, err
+	}
+
+	return cr, nil
 }
 
 func checkCondition(conditions []genericcondition.GenericCondition, conditionType string, status string, message string) bool {

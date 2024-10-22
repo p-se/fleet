@@ -11,6 +11,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubectl/pkg/scheme"
 
@@ -21,6 +23,14 @@ import (
 const (
 	BundleDeploymentConfigMap = "BundleDeploymentConfigMap"
 	CRDData                   = "CRDData"
+)
+
+var (
+	customResourceGVK = schema.GroupVersionKind{
+		Group:   "crd.com",
+		Version: "v1",
+		Kind:    "Data",
+	}
 )
 
 func init() {
@@ -43,12 +53,12 @@ data:
 			Content: `kind: Data
 apiVersion: crd.com/v1
 metadata:
-  name: crd-test
-  namespace: kube-system
+  name: data-test
+  namespace: data
   labels:
     test: adopt
 spec:
-  color: blue
+  color: red
   size: large
 `,
 		},
@@ -62,9 +72,9 @@ var _ = Describe("Adoption", Label("adopt"), func() {
 		deploymentID string
 	)
 
-	BeforeEach(func() {
+	JustBeforeEach(func() {
 		namespace = createNamespace()
-		env = adoptEnv{namespace: namespace, env: &specEnv{namespace: namespace}}
+		env = adoptEnv{namespace: namespace, specEnv: &specEnv{namespace: namespace}}
 	})
 
 	When("deploying a config map from a bundle deployment", Label("configmap"), func() {
@@ -199,14 +209,55 @@ var _ = Describe("Adoption", Label("adopt"), func() {
 
 	When("deploying a custom resource from a bundle deployment", Label("cr"), func() {
 		BeforeEach(func() {
+			namespace = "data"
 			deploymentID = CRDData
 		})
 
 		When("a bundle adopts a custom resource", Label("adopt-cr"), func() {
 			It("should adopt the custom resource", func() {
 				env.createCRD()
+				env.waitForCRD("datas.crd.com", func(crd *apiextensionsv1.CustomResourceDefinition) error {
+					for _, cond := range crd.Status.Conditions {
+						if cond.Type == apiextensionsv1.Established {
+							if cond.Status == apiextensionsv1.ConditionTrue {
+								return nil
+							} else {
+								break
+							}
+						}
+					}
+					return fmt.Errorf("CRD not established")
+				})
+
+				env.createDataCR(map[string]interface{}{
+					"color": "red",
+					"size":  "small",
+				})
+
+				resources[CRDData] = []v1alpha1.BundleResource{
+					{
+						Name: "cr.yaml",
+						Content: fmt.Sprintf(`kind: Data
+apiVersion: crd.com/v1
+metadata:
+  name: data-test
+  namespace: %s
+  labels:
+    test: adopt
+spec:
+  color: red
+  size: large
+`, namespace),
+					},
+				}
+
 				env.createBundleDeployment("adopt-cr", deploymentID, true)
-				env.waitForCRD("datas.crd.com")
+				env.assertBundleDeployment("adopt-cr", env.bundleDeploymentReady)
+
+				cr, err := env.getCustomResource("data-test")
+				spec := cr.Object["spec"].(map[string]interface{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(spec["size"]).To(Equal("large"))
 			})
 		})
 	})
@@ -214,7 +265,7 @@ var _ = Describe("Adoption", Label("adopt"), func() {
 
 type adoptEnv struct {
 	namespace string
-	env       *specEnv
+	*specEnv
 }
 
 // createBundleDeployment creates a BundleDeployment. The content to be deployed
@@ -256,16 +307,24 @@ func (e adoptEnv) createBundleDeployment(name, deploymentID string, takeOwnershi
 
 func (e adoptEnv) waitForConfigMap(name string) {
 	Eventually(func() error {
-		_, err := e.env.getConfigMap(name)
+		_, err := e.getConfigMap(name)
 		return err
 	}).Should(Succeed())
 }
 
-func (e adoptEnv) waitForCRD(name string) {
+func (e adoptEnv) waitForCRD(name string, check ...func(*apiextensionsv1.CustomResourceDefinition) error) {
 	Eventually(func() error {
-		_, err := e.env.getCRD(name)
-		return err
-	}).Should(Succeed())
+		crd, err := e.getCRD(name)
+		if err != nil {
+			return err
+		}
+		for _, c := range check {
+			if err := c(&crd); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, "2m").Should(Succeed())
 }
 
 func (e adoptEnv) createConfigMap(cm *corev1.ConfigMap) {
@@ -314,8 +373,24 @@ func (e adoptEnv) createCRD() {
 	e.waitForCRD("datas.crd.com")
 }
 
-func(e adoptEnv) createDataCR() {
-	
+func (e adoptEnv) createDataCR(spec map[string]interface{}) {
+	// Create a Data CR as unstructured object
+	dataCR := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "crd.com/v1",
+			"kind":       "Data",
+			"metadata": map[string]interface{}{
+				"name":      "data-test",
+				"namespace": e.namespace,
+			},
+			"spec": spec,
+		},
+	}
+	err := k8sClient.Create(ctx, dataCR)
+	Expect(err).ToNot(HaveOccurred())
+
+	cr := e.waitForCustomResource(customResourceGVK, "data-test")
+	Expect(cr.Object["spec"]).To(Equal(spec))
 }
 
 // assertConfigMap checks that the ConfigMap exists and that it passes the
