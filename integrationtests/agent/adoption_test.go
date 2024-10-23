@@ -47,22 +47,6 @@ data:
 			Encoding: "",
 		},
 	}
-	resources[CRDData] = []v1alpha1.BundleResource{
-		{
-			Name: "cr.yaml",
-			Content: `kind: Data
-apiVersion: crd.com/v1
-metadata:
-  name: data-test
-  namespace: data
-  labels:
-    test: adopt
-spec:
-  color: red
-  size: large
-`,
-		},
-	}
 }
 
 var _ = Describe("Adoption", Label("adopt"), func() {
@@ -216,25 +200,12 @@ var _ = Describe("Adoption", Label("adopt"), func() {
 		When("a bundle adopts a custom resource", Label("adopt-cr"), func() {
 			It("should adopt the custom resource", func() {
 				env.createCRD()
-				env.waitForCRD("datas.crd.com", func(crd *apiextensionsv1.CustomResourceDefinition) error {
-					for _, cond := range crd.Status.Conditions {
-						if cond.Type == apiextensionsv1.Established {
-							if cond.Status == apiextensionsv1.ConditionTrue {
-								return nil
-							} else {
-								break
-							}
-						}
-					}
-					return fmt.Errorf("CRD not established")
-				})
-
 				env.createDataCR(map[string]interface{}{
 					"color": "red",
 					"size":  "small",
 				})
 
-				resources[CRDData] = []v1alpha1.BundleResource{
+				resources[deploymentID] = []v1alpha1.BundleResource{
 					{
 						Name: "cr.yaml",
 						Content: fmt.Sprintf(`kind: Data
@@ -245,19 +216,27 @@ metadata:
   labels:
     test: adopt
 spec:
-  color: red
   size: large
+  weight: heavy
 `, namespace),
 					},
 				}
 
 				env.createBundleDeployment("adopt-cr", deploymentID, true)
 				env.assertBundleDeployment("adopt-cr", env.bundleDeploymentReady)
+				// env.assertBundleDeployment("adopt-cr", env.
 
 				cr, err := env.getCustomResource("data-test")
-				spec := cr.Object["spec"].(map[string]interface{})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(spec["size"]).To(Equal("large"))
+
+				annotations := cr.GetAnnotations()
+				Expect(annotations["objectset.rio.cattle.io/id"]).To(Equal("foo"))
+				Expect(annotations["objectset.rio.cattle.io/id"]).To(Equal("foo"))
+
+				spec := cr.Object["spec"].(map[string]interface{})
+				Expect(spec["size"]).To(Equal("large"))   // Overwritten by the bundle.
+				Expect(spec["color"]).To(Equal("red"))    // Untouched but supposed to be preserved/merged.
+				Expect(spec["weight"]).To(Equal("heavy")) // Added by the bundle.
 			})
 		})
 	})
@@ -312,18 +291,22 @@ func (e adoptEnv) waitForConfigMap(name string) {
 	}).Should(Succeed())
 }
 
-func (e adoptEnv) waitForCRD(name string, check ...func(*apiextensionsv1.CustomResourceDefinition) error) {
+func (e adoptEnv) waitForCRD(name string) {
 	Eventually(func() error {
 		crd, err := e.getCRD(name)
 		if err != nil {
 			return err
 		}
-		for _, c := range check {
-			if err := c(&crd); err != nil {
-				return err
+		for _, cond := range crd.Status.Conditions {
+			if cond.Type == apiextensionsv1.Established {
+				if cond.Status == apiextensionsv1.ConditionTrue {
+					return nil
+				} else {
+					break
+				}
 			}
 		}
-		return nil
+		return fmt.Errorf("CRD not established")
 	}, "2m").Should(Succeed())
 }
 
