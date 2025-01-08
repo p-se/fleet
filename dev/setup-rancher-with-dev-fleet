@@ -33,11 +33,11 @@ helm upgrade --install rancher rancher-latest/rancher \
     --devel \
     --namespace cattle-system \
     --create-namespace \
-    --set hostname=$ip.sslip.io \
+    --set hostname=$ip.nip.io \
     --set bootstrapPassword=admin \
     --set agentTLSMode=system-store \
     --set "extraEnv[0].name=CATTLE_SERVER_URL" \
-    --set "extraEnv[0].value=https://$ip.sslip.io" \
+    --set "extraEnv[0].value=https://$ip.nip.io" \
     --set replicas=1 \
 #    --set rancherImageTag=$tag \
 #    --set extraEnv[0].name=CATTLE_FLEET_VERSION \
@@ -62,7 +62,7 @@ until kubectl get bundles -n fleet-local | grep -q "fleet-agent-local.*1/1"; do 
 
 helm list -A
 
-export public_hostname=$ip.sslip.io
+export public_hostname=$ip.nip.io
 
 ./.github/scripts/wait-for-loadbalancer.sh
 ./.github/scripts/register-downstream-clusters.sh

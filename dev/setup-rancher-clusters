@@ -7,7 +7,7 @@ if [ ! -d ./.github/scripts ]; then
   exit 1
 fi
 
-public_hostname="${public_hostname-172.18.0.1.sslip.io}"
+public_hostname="${public_hostname-172.18.0.1.nip.io}"
 upstream_ctx="${FLEET_E2E_CLUSTER-k3d-upstream}"
 downstream_ctx="${FLEET_E2E_CLUSTER_DOWNSTREAM-k3d-downstream}"
 rancherpassword="${RANCHER_PASSWORD-rancherpassword}"
@@ -51,6 +51,6 @@ kubectl -n cattle-fleet-system rollout status deploy/fleet-controller
 ./.github/scripts/wait-for-loadbalancer.sh
 
 export cluster_downstream="$downstream_ctx"
-./.github/scripts/register-downstream-clusters.sh "$public_hostname"
+./dev/register-downstream-clusters "$public_hostname"
 
 ./.github/scripts/label-downstream-cluster.sh
