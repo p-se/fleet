@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 
@@ -72,9 +71,9 @@ type Options struct {
 }
 
 func globDirs(baseDir string) (result []string, err error) {
-	for strings.HasPrefix(baseDir, "/") {
-		baseDir = baseDir[1:]
-	}
+	// for strings.HasPrefix(baseDir, "/") {
+	// 	baseDir = baseDir[1:]
+	// }
 	paths, err := filepath.Glob(baseDir)
 	if err != nil {
 		return nil, err
@@ -108,7 +107,9 @@ func CreateBundles(ctx context.Context, client Getter, repoName string, baseDirs
 					return err
 				}
 			}
-			err := filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+			walkCount := 0
+			filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
+				walkCount++
 				opts := opts
 				createBundle, e := shouldCreateBundleForThisPath(baseDir, path, info)
 				if e != nil {
@@ -130,9 +131,10 @@ func CreateBundles(ctx context.Context, client Getter, repoName string, baseDirs
 
 				return nil
 			})
-			if err != nil {
-				return err
-			}
+			fmt.Println("walkCount", walkCount)
+			// if err != nil {
+			// 	return err
+			// }
 		}
 	}
 
