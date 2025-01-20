@@ -216,7 +216,7 @@ func loadDirectories(ctx context.Context, compress bool, disableDepsUpdate bool,
 			defer sem.Release(1)
 			resources, err := loadDirectory(ctx, compress, disableDepsUpdate, dir.prefix, dir.base, dir.source, dir.version, dir.auth)
 			if err != nil {
-				return err
+				return nil
 			}
 
 			key := dir.key
