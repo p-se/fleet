@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/ssh"
+
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,12 +68,18 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+var tmpDir string
+
 func setupSuite() func() {
 	ctx := context.Background()
 	var err error
 	t := &testing.T{}
-	container, url, err = createGogsContainer(ctx, createTempFolder(t))
-	require.NoError(t, err, "creating gogs container failed")
+
+	tmpDir = createTempFolder(t)
+	container, url, err = createGogsContainer(ctx, tmpDir)
+	if err != nil {
+		panic(fmt.Errorf("creating gogs container failed: %w", err))
+	}
 
 	return func() {
 		terminateContainer(ctx, container, t)
@@ -192,6 +200,18 @@ func TestLatestCommitSSH(t *testing.T) {
 	ctx := context.Background()
 	privateKey, err := createAndAddKeys()
 	require.NoError(err)
+
+	// TODO chmod here?
+	err = os.Chmod(filepath.Join(tmpDir, "git", ".ssh"), 0700)
+	if err != nil {
+		panic(fmt.Errorf("failed to change permissions for .ssh directory: %w", err))
+	}
+
+	err = os.Chown(filepath.Join(tmpDir, "git", ".ssh"), 1000, 1000)
+	if err != nil {
+		panic(fmt.Errorf("failed to change permissions for .ssh directory: %w", err))
+	}
+
 	sshPort, err := container.MappedPort(ctx, "22")
 	require.NoError(err)
 	gogsKnownHosts := []byte("[localhost]:" + sshPort.Port() + " " + gogsFingerPrint)
@@ -359,6 +379,7 @@ func createGogsContainer(ctx context.Context, tmpDir string) (testcontainers.Con
 	if err != nil {
 		return nil, "", err
 	}
+
 	req := testcontainers.ContainerRequest{
 		Image:        "gogs/gogs:0.13",
 		ExposedPorts: []string{"3000/tcp", "22/tcp"},
@@ -374,7 +395,6 @@ func createGogsContainer(ctx context.Context, tmpDir string) (testcontainers.Con
 					Target: "/data",
 				},
 			}
-
 		},
 	}
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -607,7 +627,10 @@ func createTempFolder(t *testing.T) string {
 		return tmp
 	}
 
-	return t.TempDir()
+	tmpDir := t.TempDir()
+	fmt.Println("Temp dir: ", tmpDir)
+
+	return tmpDir
 }
 
 // createAndAddKeys creates a public private key pair. It adds the public key to gogs, and returns the private key.
@@ -650,6 +673,17 @@ func makeSSHKeyPair() (string, string, error) {
 }
 
 func terminateContainer(ctx context.Context, container testcontainers.Container, t *testing.T) {
+	rc, err := container.Logs(ctx)
+	if err != nil {
+		t.Fatalf("failed to get logs: %s", err.Error())
+	}
+	defer rc.Close()
+	b, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("failed to read logs: %s", err.Error())
+	}
+	fmt.Printf("Container logs:\n%s\n", string(b))
+
 	if err := container.Terminate(ctx); err != nil {
 		t.Fatalf("failed to terminate container: %s", err.Error())
 	}
