@@ -14,4 +14,8 @@ KUBEBUILDER_ASSETS=$(setup-envtest use --use-env -p path "$ENVTEST_K8S_VERSION")
 export KUBEBUILDER_ASSETS
 
 # run integration tests
+if [[ "$#" -gt 0 ]]; then
+    go test "$@"
+    exit
+fi
 go test ./integrationtests/...
