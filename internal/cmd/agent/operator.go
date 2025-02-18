@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/rancher/fleet/internal/cmd"
 	"github.com/rancher/fleet/internal/cmd/agent/controller"
 	"github.com/rancher/fleet/internal/cmd/agent/deployer"
 	"github.com/rancher/fleet/internal/cmd/agent/deployer/cleanup"
@@ -74,11 +75,21 @@ func start(
 	metricsAddr := ":8080"
 	probeAddr := ":8081"
 
+	leaderOpts, err := cmd.NewLeaderElectionOptions()
+	if err != nil {
+		return err
+	}
+
 	mgr, err := ctrl.NewManager(upstreamConfig, ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         false,
+		Scheme:                  scheme,
+		Metrics:                 metricsserver.Options{BindAddress: metricsAddr},
+		HealthProbeBindAddress:  probeAddr,
+		LeaderElection:          true,
+		LeaderElectionID:        "fleet-agent-leader-election",
+		LeaderElectionNamespace: fleetNamespace,
+		LeaseDuration:           leaderOpts.LeaseDuration,
+		RenewDeadline:           leaderOpts.RenewDeadline,
+		RetryPeriod:             leaderOpts.RetryPeriod,
 		// only watch resources in the fleet namespace
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{fleetNamespace: {}},

@@ -39,6 +39,11 @@ func ApplyBootstrapResources(systemNamespace, systemRegistrationNamespace string
 					APIGroups: []string{""},
 					Resources: []string{"secrets"},
 				},
+				{
+					Verbs:     []string{"*"},
+					APIGroups: []string{"coordination.k8s.io"},
+					Resources: []string{"leases"},
+				},
 			},
 		},
 		// used by request-* service accounts from agents
