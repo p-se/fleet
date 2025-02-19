@@ -40,9 +40,10 @@ func ApplyBootstrapResources(systemNamespace, systemRegistrationNamespace string
 					Resources: []string{"secrets"},
 				},
 				{
-					Verbs:     []string{"*"},
-					APIGroups: []string{"coordination.k8s.io"},
-					Resources: []string{"leases"},
+					Verbs:         []string{"*"},
+					APIGroups:     []string{"coordination.k8s.io"},
+					Resources:     []string{"leases"},
+					ResourceNames: []string{"fleet-agent-leader-election"},
 				},
 			},
 		},
