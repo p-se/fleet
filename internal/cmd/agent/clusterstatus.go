@@ -27,8 +27,6 @@ import (
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
 	"github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
-	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
-	"github.com/rancher/wrangler/v3/pkg/ratelimit"
 	"github.com/rancher/wrangler/v3/pkg/ticker"
 )
 
@@ -50,16 +48,29 @@ func (cs *ClusterStatus) Start(ctx context.Context) error {
 		}
 	}
 
-	clientConfig := kubeconfig.GetNonInteractiveClientConfig(cs.Kubeconfig)
-	kc, err := clientConfig.ClientConfig()
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	// if you want to change the loading rules (which files in which order), you can do so here
+
+	configOverrides := &clientcmd.ConfigOverrides{}
+	// if you want to change override values or bind them to flags, there are methods to help you
+
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+	config, err := kubeConfig.ClientConfig()
 	if err != nil {
-		setupLog.Error(err, "failed to get kubeconfig")
-		return err
+		// Do something
 	}
+	// client, err := metav1.New(config)
+
+	// // Use client-go to get the client config
+	// clientConfig, err := clientcmd.BuildConfigFromFlags("", cs.Kubeconfig)
+	// if err != nil {
+	// 	setupLog.Error(err, "failed to build client config from kubeconfig")
+	// 	return err
+	// }
 
 	// without rate limiting
-	localConfig := rest.CopyConfig(kc)
-	localConfig.RateLimiter = ratelimit.None
+	localConfig := rest.CopyConfig(config)
+	localConfig.RateLimiter = nil
 
 	// cannot start without kubeconfig for upstream cluster
 	setupLog.Info("Fetching kubeconfig for upstream cluster from registration", "namespace", cs.Namespace)
@@ -83,7 +94,7 @@ func (cs *ClusterStatus) Start(ctx context.Context) error {
 	}
 
 	//  now we have both configs
-	fleetMapper, mapper, _, err := newMappers(ctx, fleetRESTConfig, clientConfig)
+	fleetMapper, mapper, _, err := newMappers(ctx, fleetRESTConfig, kubeConfig)
 	if err != nil {
 		setupLog.Error(err, "failed to get mappers")
 		return err
@@ -170,7 +181,7 @@ func newMappers(ctx context.Context, fleetRESTConfig *rest.Config, clientconfig 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	client.RateLimiter = ratelimit.None
+	client.RateLimiter = nil
 
 	d, err := discovery.NewDiscoveryClientForConfig(client)
 	if err != nil {
