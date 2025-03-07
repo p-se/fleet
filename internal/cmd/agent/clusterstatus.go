@@ -26,7 +26,6 @@ import (
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
-	"github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/v3/pkg/ticker"
 )
 
@@ -94,7 +93,7 @@ func (cs *ClusterStatus) Start(ctx context.Context) error {
 	}
 
 	//  now we have both configs
-	fleetMapper, mapper, _, err := newMappers(ctx, fleetRESTConfig, kubeConfig)
+	fleetMapper, _, _, err := newMappers(ctx, fleetRESTConfig, kubeConfig)
 	if err != nil {
 		setupLog.Error(err, "failed to get mappers")
 		return err
@@ -114,20 +113,20 @@ func (cs *ClusterStatus) Start(ctx context.Context) error {
 		return err
 	}
 
-	// set up factory for local cluster
-	localFactory, err := newSharedControllerFactory(localConfig, mapper, "")
-	if err != nil {
-		setupLog.Error(err, "failed to build shared controller factory")
-		return err
-	}
+	// // set up factory for local cluster
+	// localFactory, err := newSharedControllerFactory(localConfig, mapper, "")
+	// if err != nil {
+	// 	setupLog.Error(err, "failed to build shared controller factory")
+	// 	return err
+	// }
 
-	coreFactory, err := core.NewFactoryFromConfigWithOptions(localConfig, &core.FactoryOptions{
-		SharedControllerFactory: localFactory,
-	})
-	if err != nil {
-		setupLog.Error(err, "failed to build core factory")
-		return err
-	}
+	// coreFactory, err := core.NewFactoryFromConfigWithOptions(localConfig, &core.FactoryOptions{
+	// 	SharedControllerFactory: localFactory,
+	// })
+	// if err != nil {
+	// 	setupLog.Error(err, "failed to build core factory")
+	// 	return err
+	// }
 
 	setupLog.Info("Starting cluster status ticker", "checkin interval", checkinInterval.String(), "cluster namespace", agentInfo.ClusterNamespace, "cluster name", agentInfo.ClusterName)
 
@@ -137,7 +136,7 @@ func (cs *ClusterStatus) Start(ctx context.Context) error {
 			agentInfo.ClusterNamespace,
 			agentInfo.ClusterName,
 			checkinInterval,
-			coreFactory.Core().V1().Node(),
+			// coreFactory.Core().V1().Node(),
 			fleetFactory.Fleet().V1alpha1().Cluster(),
 		)
 
