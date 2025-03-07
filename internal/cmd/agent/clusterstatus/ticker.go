@@ -12,8 +12,6 @@ import (
 	"github.com/rancher/fleet/pkg/durations"
 	fleetcontrollers "github.com/rancher/fleet/pkg/generated/controllers/fleet.cattle.io/v1alpha1"
 
-	"github.com/rancher/wrangler/v3/pkg/ticker"
-
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -57,10 +55,17 @@ func Ticker(ctx context.Context,
 		if checkinInterval == 0 {
 			checkinInterval = durations.DefaultClusterCheckInterval
 		}
-		for range ticker.Context(ctx, checkinInterval) {
-			logger.V(1).Info("Reporting cluster status")
-			if err := h.Update(); err != nil {
-				logrus.Errorf("failed to report cluster status: %v", err)
+		ticker := time.NewTicker(checkinInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				logger.V(1).Info("Reporting cluster status")
+				if err := h.Update(); err != nil {
+					logrus.Errorf("failed to report cluster status: %v", err)
+				}
 			}
 		}
 	}()
