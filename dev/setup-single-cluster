@@ -6,7 +6,7 @@ export CUSTOM_CONFIG_FILE="env.single-cluster"
 # shellcheck source=dev/setup-cluster-config
 source ./dev/setup-cluster-config
 
-if [ $1 = "--reuse" ]; then
+if [ "$1" = "--reuse" ]; then
     ./dev/remove-fleet
 else
     # Cleans with settings sourced, so it should be rather selective.
