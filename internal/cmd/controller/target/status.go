@@ -32,12 +32,13 @@ func MaxUnavailable(targets []*Target) (int, error) {
 
 // Unavailable counts the number of targets that are not available (pure function)
 func Unavailable(targets []*Target) (count int) {
-	for _, target := range targets {
+	for i, target := range targets {
 		if target.Deployment == nil {
 			continue
 		}
 		if isUnavailable(target.Deployment) {
 			count++
+			fmt.Printf("%d is unavailable\n", i)
 		}
 	}
 	return
@@ -77,13 +78,18 @@ func isUnavailable(target *fleet.BundleDeployment) bool {
 	if target == nil {
 		return false
 	}
+	// TODO does that make sense here? Should deployment IDs not be compared here but perhaps upToDate be used?
 	return target.Status.AppliedDeploymentID != target.Spec.DeploymentID ||
-		target.Status.Ready
+		!target.Status.Ready
 }
 
-// limit calculates the maximum number of unavailable items. It takes the first
+// limit calculates the maximum number of unavailable items. It uses the first
 // non-nil value from the provided values. If no value is provided, it defaults
-// to a predefined limit.
+// to a predefined limit. If a percentage is provided, it calculates the
+// percentage of the total count of items. If the percentage is less than or
+// equal to zero, it defaults to 1.
+//
+// The resulting percentage is rounded down to the nearest integer.
 func limit(count int, val ...*intstr.IntOrString) (int, error) {
 	if count <= 0 {
 		return 1, nil

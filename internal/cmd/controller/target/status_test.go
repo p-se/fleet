@@ -7,6 +7,62 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+func availableTarget() *Target {
+	return &Target{
+		Deployment: &fleet.BundleDeployment{
+			Spec: fleet.BundleDeploymentSpec{
+				DeploymentID:       "id",
+				StagedDeploymentID: "id",
+			},
+			Status: fleet.BundleDeploymentStatus{
+				AppliedDeploymentID: "id",
+				Ready:               true,
+			},
+		},
+		DeploymentID: "id",
+	}
+}
+
+func unavailableTargetMismatchedID() *Target {
+	return &Target{
+		Deployment: &fleet.BundleDeployment{
+			Spec: fleet.BundleDeploymentSpec{
+				DeploymentID:       "id",
+				StagedDeploymentID: "id",
+			},
+			Status: fleet.BundleDeploymentStatus{
+				AppliedDeploymentID: "off-id",
+				Ready:               true,
+			},
+		},
+		DeploymentID: "id",
+	}
+}
+
+func unavailableTargetNonReady() *Target {
+	return &Target{
+		Deployment: &fleet.BundleDeployment{
+			Spec: fleet.BundleDeploymentSpec{
+				DeploymentID:       "id",
+				StagedDeploymentID: "id",
+			},
+			Status: fleet.BundleDeploymentStatus{
+				AppliedDeploymentID: "id",
+				Ready:               false,
+			},
+		},
+		DeploymentID: "id",
+	}
+}
+
+func targetWithRolloutStrategy(target *Target, rolloutStrategy fleet.RolloutStrategy) *Target {
+	if target.Bundle == nil {
+		target.Bundle = &fleet.Bundle{}
+	}
+	target.Bundle.Spec.RolloutStrategy = &rolloutStrategy
+	return target
+}
+
 func Test_limit(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -103,6 +159,22 @@ func Test_limit(t *testing.T) {
 			val:   []*intstr.IntOrString{},
 			want:  50,
 		},
+		{
+			name:  "percentage below 1 should return 1",
+			count: 5,
+			val: []*intstr.IntOrString{
+				{Type: intstr.String, StrVal: "1%"},
+			},
+			want: 1,
+		},
+		{
+			name:  "percentages are always rounded down",
+			count: 10,
+			val: []*intstr.IntOrString{
+				{Type: intstr.String, StrVal: "49%"},
+			},
+			want: 4,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -123,15 +195,14 @@ func Test_limit(t *testing.T) {
 	}
 }
 
-func Test_isAvailable(t *testing.T) {
+func Test_isUnavailable(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for target function.
+		name   string
 		target *fleet.BundleDeployment
 		want   bool
 	}{
 		{
-			name:   "empty target should be not be unavailable",
+			name:   "empty target should not be unavailable",
 			target: nil,
 			want:   false,
 		},
@@ -148,6 +219,19 @@ func Test_isAvailable(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "ready and AppliedDeploymentID does match DeploymentID",
+			target: &fleet.BundleDeployment{
+				Spec: fleet.BundleDeploymentSpec{
+					DeploymentID: "123",
+				},
+				Status: fleet.BundleDeploymentStatus{
+					AppliedDeploymentID: "123",
+					Ready:               true,
+				},
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -161,8 +245,7 @@ func Test_isAvailable(t *testing.T) {
 
 func Test_upToDate(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for target function.
+		name   string
 		target *Target
 		want   bool
 	}{
@@ -247,62 +330,47 @@ func Test_upToDate(t *testing.T) {
 }
 
 func Test_updateStatusAndCheckUnavailable(t *testing.T) {
-	availableTarget := func() *Target {
-		return &Target{
-			Deployment: &fleet.BundleDeployment{
-				Spec: fleet.BundleDeploymentSpec{
-					DeploymentID:       "id",
-					StagedDeploymentID: "id",
-				},
-				Status: fleet.BundleDeploymentStatus{
-					AppliedDeploymentID: "id",
-				},
-			},
-			DeploymentID: "id",
-		}
-	}
-	unavailableTarget := func() *Target {
-		return &Target{
-			Deployment: &fleet.BundleDeployment{
-				Spec: fleet.BundleDeploymentSpec{
-					DeploymentID:       "id",
-					StagedDeploymentID: "id",
-				},
-				Status: fleet.BundleDeploymentStatus{
-					AppliedDeploymentID: "id",
-				},
-			},
-			DeploymentID: "off-id",
-		}
-	}
 
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for target function.
+		name    string
 		status  *fleet.PartitionStatus
 		targets []*Target
 		want    bool
 	}{
 		{
-			name: "should be available if all targest are available",
+			name: "should be available if all targets are available",
 			status: &fleet.PartitionStatus{
 				MaxUnavailable: 0,
 			},
 			targets: []*Target{
+				availableTarget(),
 				availableTarget(),
 			},
 			want: false,
 		},
 		{
-			name: "should be unavailable if one targest are unavailable but 0 can be",
+			name: "should be unavailable if one target is unavailable but 0 can be",
 			status: &fleet.PartitionStatus{
 				MaxUnavailable: 0,
 			},
 			targets: []*Target{
 				availableTarget(),
-				unavailableTarget(),
+				availableTarget(),
+				unavailableTargetMismatchedID(),
 			},
 			want: true,
+		},
+		{
+			name: "should be available if max unavailable is 1 and one target is unavailable",
+			status: &fleet.PartitionStatus{
+				MaxUnavailable: 1,
+			},
+			targets: []*Target{
+				availableTarget(),
+				availableTarget(),
+				unavailableTargetMismatchedID(),
+			},
+			want: false,
 		},
 	}
 	for _, tt := range tests {
@@ -310,6 +378,122 @@ func Test_updateStatusAndCheckUnavailable(t *testing.T) {
 			got := updateStatusAndCheckUnavailable(tt.status, tt.targets)
 			if got != tt.want {
 				t.Errorf("updateStatusUnavailable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUnavailable(t *testing.T) {
+	tests := []struct {
+		name    string
+		targets []*Target
+		want    int
+	}{
+		{
+			name: "should correctly count unavailable targets",
+			targets: []*Target{
+				availableTarget(),
+				availableTarget(),
+				unavailableTargetMismatchedID(),
+				unavailableTargetNonReady(),
+				availableTarget(),
+				{}, // Deployment is nil
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Unavailable(tt.targets)
+			if got != tt.want {
+				t.Errorf("Unavailable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestMaxUnavailable tests the MaxUnavailable function to ensure it correctly
+// calculates the maximum number of unavailable targets based on the provided
+// rollout strategy.
+func TestMaxUnavailable(t *testing.T) {
+	tests := []struct {
+		name    string
+		targets []*Target
+		want    int
+		wantErr bool
+	}{
+		{
+			name: "",
+			targets: []*Target{
+				targetWithRolloutStrategy(&Target{}, fleet.RolloutStrategy{
+					MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 0},
+				}),
+			},
+			want: 0,
+		},
+		{
+			name: "percentage that leads to less than 1 max unavailable should return 1",
+			targets: []*Target{
+				targetWithRolloutStrategy(unavailableTargetNonReady(), fleet.RolloutStrategy{
+					MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "1%"},
+				}),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+			},
+			want: 1,
+		},
+		{
+			name: "25% of 4 is 1",
+			targets: []*Target{
+				targetWithRolloutStrategy(unavailableTargetNonReady(), fleet.RolloutStrategy{
+					MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
+				}),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+			},
+			want: 1,
+		},
+		{
+			name: "49% of 4 is 1",
+			targets: []*Target{
+				targetWithRolloutStrategy(unavailableTargetNonReady(), fleet.RolloutStrategy{
+					MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "49%"},
+				}),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+			},
+			want: 1,
+		},
+		{
+			name: "50% of 4 is 2",
+			targets: []*Target{
+				targetWithRolloutStrategy(unavailableTargetNonReady(), fleet.RolloutStrategy{
+					MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "50%"},
+				}),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+				unavailableTargetNonReady(),
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := MaxUnavailable(tt.targets)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("MaxUnavailable() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("MaxUnavailable() succeeded unexpectedly")
+			}
+			if got != tt.want {
+				t.Errorf("MaxUnavailable() = %v, want %v", got, tt.want)
 			}
 		})
 	}
