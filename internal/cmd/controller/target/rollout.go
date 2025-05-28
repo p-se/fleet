@@ -6,19 +6,44 @@ import (
 	"github.com/rancher/fleet/internal/cmd/controller/target/matcher"
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var info = log.Log.V(0).WithName("rollout.go").Info
+
+func partitionInfo(msg string, partitions []partition) {
+	info(msg)
+	for i, partition := range partitions {
+		info(fmt.Sprintf("partition %d", i),
+			"status", partition.Status,
+			"partitions", len(partition.Targets),
+		)
+	}
+}
 
 // partitions distributes targets into partitions based on the rollout strategy (pure function)
 func partitions(targets []*Target) ([]partition, error) {
 	rollout := getRollout(targets)
 	if len(rollout.Partitions) == 0 {
-		return autoPartition(rollout, targets)
+		partitions, err := autoPartition(rollout, targets)
+		partitionInfo("auto partitioning", partitions)
+		return partitions, err
 	}
 
-	return manualPartition(rollout, targets)
+	partitions, err := manualPartition(rollout, targets)
+	partitionInfo("manual partitioning", partitions)
+
+	return partitions, err
 }
 
-// getRollout returns the rollout strategy for the specified targets (pure function)
+// getRollout returns the rollout strategy for the specified targets (pure
+// function).
+//
+// If targets contains several elements, the rollout strategy of the first
+// element is used. If no rollout strategy is found, an empty is created and
+// returned. This function therefore assumes that all bundles in targets have
+// the same rollout strategy.
 func getRollout(targets []*Target) *fleet.RolloutStrategy {
 	var rollout *fleet.RolloutStrategy
 	if len(targets) > 0 {
@@ -67,11 +92,13 @@ func autoPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]partiti
 	// if auto is disabled
 	if rollout.AutoPartitionSize != nil && rollout.AutoPartitionSize.Type == intstr.Int &&
 		rollout.AutoPartitionSize.IntVal <= 0 {
+		info("disabling auto partitioning, all targets will be in one partition")
 		return appendPartition(nil, "All", targets, rollout.MaxUnavailable)
 	}
 
 	// Also disable if less than 200
 	if len(targets) < 200 {
+		info("auto partitioning disabled, less than 200 targets")
 		return appendPartition(nil, "All", targets, rollout.MaxUnavailable)
 	}
 
@@ -89,10 +116,7 @@ func autoPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]partiti
 		if len(targets) == 0 {
 			return partitions, nil
 		}
-		end := maxSize
-		if len(targets) < maxSize {
-			end = len(targets)
-		}
+		end := min(len(targets), maxSize)
 
 		partitionTargets := targets[:end]
 		name := fmt.Sprintf("Partition %d - %d", offset, offset+end)
