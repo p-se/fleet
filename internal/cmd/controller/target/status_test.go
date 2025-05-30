@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// availableTarget returns a Target that is considered available.
 func availableTarget() *Target {
 	return &Target{
 		Deployment: &fleet.BundleDeployment{
@@ -23,6 +24,8 @@ func availableTarget() *Target {
 	}
 }
 
+// unavailableTargetMismatchedID returns a Target that is considered
+// unavailable due to a mismatched ID.
 func unavailableTargetMismatchedID() *Target {
 	return &Target{
 		Deployment: &fleet.BundleDeployment{
@@ -39,6 +42,8 @@ func unavailableTargetMismatchedID() *Target {
 	}
 }
 
+// unavailableTargetNonReady returns a Target that is considered
+// unavailable due to not being ready.
 func unavailableTargetNonReady() *Target {
 	return &Target{
 		Deployment: &fleet.BundleDeployment{
@@ -330,7 +335,6 @@ func Test_upToDate(t *testing.T) {
 }
 
 func Test_updateStatusAndCheckUnavailable(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		status  *fleet.PartitionStatus
@@ -423,7 +427,7 @@ func TestMaxUnavailable(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "",
+			name: "zero should be zero",
 			targets: []*Target{
 				targetWithRolloutStrategy(&Target{}, fleet.RolloutStrategy{
 					MaxUnavailable: &intstr.IntOrString{Type: intstr.Int, IntVal: 0},
