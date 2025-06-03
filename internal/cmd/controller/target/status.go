@@ -32,13 +32,12 @@ func MaxUnavailable(targets []*Target) (int, error) {
 
 // Unavailable counts the number of targets that are not available (pure function)
 func Unavailable(targets []*Target) (count int) {
-	for i, target := range targets {
+	for _, target := range targets {
 		if target.Deployment == nil {
 			continue
 		}
 		if isUnavailable(target.Deployment) {
 			count++
-			fmt.Printf("%d is unavailable\n", i)
 		}
 	}
 	return

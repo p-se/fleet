@@ -10,12 +10,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var info = log.Log.V(0).WithName("rollout.go").Info
+var rolloutInfo = log.Log.V(0).WithName("rollout.go").Info
 
 func partitionInfo(msg string, partitions []partition) {
-	info(msg)
+	rolloutInfo(msg)
 	for i, partition := range partitions {
-		info(fmt.Sprintf("partition %d", i),
+		rolloutInfo(fmt.Sprintf("partition %d", i),
 			"status", partition.Status,
 			"partitions", len(partition.Targets),
 		)
@@ -76,6 +76,10 @@ func manualPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]parti
 					continue targetLoop
 				}
 			}
+			if len(target.ClusterGroups) == 0 && matcher.Match(target.Cluster.Name, "", nil, target.Cluster.Labels) {
+				partitionTargets = append(partitionTargets, target)
+				continue targetLoop
+			}
 		}
 
 		partitions, err = appendPartition(partitions, partitionDef.Name, partitionTargets, partitionDef.MaxUnavailable, rollout.MaxUnavailable)
@@ -92,13 +96,13 @@ func autoPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]partiti
 	// if auto is disabled
 	if rollout.AutoPartitionSize != nil && rollout.AutoPartitionSize.Type == intstr.Int &&
 		rollout.AutoPartitionSize.IntVal <= 0 {
-		info("disabling auto partitioning, all targets will be in one partition")
+		rolloutInfo("auto partitioning disabled, all targets will be in one partition")
 		return appendPartition(nil, "All", targets, rollout.MaxUnavailable)
 	}
 
 	// Also disable if less than 200
 	if len(targets) < 200 {
-		info("auto partitioning disabled, less than 200 targets")
+		rolloutInfo("auto partitioning disabled, due to having less than 200 targets")
 		return appendPartition(nil, "All", targets, rollout.MaxUnavailable)
 	}
 

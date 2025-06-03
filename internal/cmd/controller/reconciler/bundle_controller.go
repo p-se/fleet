@@ -245,6 +245,7 @@ func (r *BundleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// this will add the defaults for a new bundledeployment. It propagates stagedOptions to options.
 	if err := target.UpdatePartitions(&bundle.Status, matchedTargets); err != nil {
+		logger.V(1).Error(err, "failed to update partitions for bundle", "bundle", bundle.GetName())
 		return ctrl.Result{}, err
 	}
 

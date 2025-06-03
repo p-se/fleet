@@ -1,10 +1,16 @@
 package target
 
 import (
+	"fmt"
+	"strings"
+
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+var partitionLog = log.Log.V(0).WithName("partition.go").Info
 
 type partition struct {
 	Status  fleet.PartitionStatus
@@ -15,6 +21,9 @@ type partition struct {
 // It creates Deployments in allTargets if they are missing.
 // It updates Deployments in allTargets if they are out of sync (DeploymentID != StagedDeploymentID).
 func UpdatePartitions(status *fleet.BundleStatus, allTargets []*Target) (err error) {
+	if len(allTargets) > 1 {
+		fmt.Printf("interesting path\n")
+	}
 	partitions, err := partitions(allTargets)
 	if err != nil {
 		return err
@@ -78,6 +87,9 @@ func maxUnavailablePartitions(partitions []partition, targets []*Target) (int, e
 // updateTarget will update DeploymentID and Options for the target to the
 // staging values, if it's in a deployable state
 func updateTarget(t *Target, status *fleet.BundleStatus, partitionStatus *fleet.PartitionStatus) {
+	if !strings.Contains(t.Deployment.Name, "agent") {
+		fmt.Println("good breakpoint")
+	}
 	if t.Deployment != nil &&
 		// Not Paused
 		!t.IsPaused() &&
