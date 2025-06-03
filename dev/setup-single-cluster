@@ -6,24 +6,25 @@ export CUSTOM_CONFIG_FILE="env.single-cluster"
 # shellcheck source=dev/setup-cluster-config
 source ./dev/setup-cluster-config
 
+DISABLE_SHARDING=${DISABLE_SHARDING:-false}
+
 if [ $1 = "--reuse" ]; then
-    ./dev/remove-fleet
+  ./dev/remove-fleet
 else
-    # Cleans with settings sourced, so it should be rather selective.
-    ./dev/k3d-clean
+  # Cleans with settings sourced, so it should be rather selective.
+  ./dev/k3d-clean
 
-    PORT_OFFSET=0
-    if [ -z "$external_ip" ];
-    then
-     PORT_OFFSET=$(( RANDOM % 10001 ))
-    fi
+  PORT_OFFSET=0
+  if [ -z "$external_ip" ]; then
+    PORT_OFFSET=$((RANDOM % 10001))
+  fi
 
-    ./dev/setup-k3d "${FLEET_E2E_CLUSTER#k3d-}" "$PORT_OFFSET"
+  ./dev/setup-k3d "${FLEET_E2E_CLUSTER#k3d-}" "$PORT_OFFSET"
 fi
 
 ./dev/build-fleet
 ./dev/import-images-k3d
-./dev/setup-fleet "${FLEET_E2E_CLUSTER#k3d-}" '[
+sharding_options='[
     {
         "id": "shard0",
         "nodeSelector": {
@@ -40,10 +41,14 @@ fi
         }
     }
 ]'
+if DISABLE_SHARDING; then
+  sharding_options=''
+fi
+./dev/setup-fleet "${FLEET_E2E_CLUSTER#k3d-}" "$sharding_options"
 
 # needed for gitrepo tests
 ./dev/import-images-tests-k3d
 ./dev/create-zot-certs 'FleetCI-RootCA' # for OCI tests
-set +e # keep going if secrets already exist
+set +e                                  # keep going if secrets already exist
 ./dev/create-secrets 'FleetCI-RootCA'
 go run ./e2e/testenv/infra/main.go setup
