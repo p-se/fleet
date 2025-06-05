@@ -2,7 +2,6 @@ package target
 
 import (
 	"fmt"
-	"strings"
 
 	fleet "github.com/rancher/fleet/pkg/apis/fleet.cattle.io/v1alpha1"
 
@@ -87,9 +86,6 @@ func maxUnavailablePartitions(partitions []partition, targets []*Target) (int, e
 // updateTarget will update DeploymentID and Options for the target to the
 // staging values, if it's in a deployable state
 func updateTarget(t *Target, status *fleet.BundleStatus, partitionStatus *fleet.PartitionStatus) {
-	if !strings.Contains(t.Deployment.Name, "agent") {
-		fmt.Println("good breakpoint")
-	}
 	if t.Deployment != nil &&
 		// Not Paused
 		!t.IsPaused() &&

@@ -70,24 +70,31 @@ func Test_createTargets(t *testing.T) {
 	}
 }
 
-func withCluster(targets []*Target, cluster *fleet.Cluster, start, stop int) []*Target {
-	for i, target := range targets {
-		if i < start || i > stop {
-			continue
-		}
+func withCluster(targets []*Target, cluster *fleet.Cluster) {
+	for _, target := range targets {
 		target.Cluster = cluster
 	}
-	return targets
 }
 
-func withClusterGroup(targets []*Target, clusterGroup *fleet.ClusterGroup, start, stop int) []*Target {
-	for i, target := range targets {
-		if i < start || i > stop {
-			continue
-		}
+func withClusterGroup(targets []*Target, clusterGroup *fleet.ClusterGroup) {
+	for _, target := range targets {
 		target.ClusterGroups = append(target.ClusterGroups, clusterGroup)
 	}
-	return targets
+}
+
+func Test_withClusterGroup(t *testing.T) {
+	clusterGroup := &fleet.ClusterGroup{}
+	target1 := &Target{}
+	target2 := &Target{}
+	targets := []*Target{target1, target2}
+
+	withClusterGroup(targets, clusterGroup)
+
+	for _, target := range targets {
+		if len(target.ClusterGroups) != 1 || target.ClusterGroups[0] != clusterGroup {
+			t.Errorf("expected cluster group to be appended to target, got %+v", target.ClusterGroups)
+		}
+	}
 }
 
 func targetsEqual(got, want []*Target) error {
@@ -217,8 +224,8 @@ func Test_manualPartition(t *testing.T) {
 					},
 				}
 				targets := createTargets(1, 4)
-				targets = withCluster(targets, cluster1, 0, 1)
-				targets = withCluster(targets, cluster2, 2, 3)
+				withCluster(targets[0:2], cluster1)
+				withCluster(targets[2:4], cluster2)
 				return targets
 			},
 			want: []partition{
@@ -256,9 +263,9 @@ func Test_manualPartition(t *testing.T) {
 						Name: "cluster-2",
 					},
 				}
-				targets = withCluster(targets, cluster1, 0, 1)
-				targets = withCluster(targets, cluster2, 2, 3)
-				targets = withClusterGroup(targets, &fleet.ClusterGroup{
+				withCluster(targets[0:2], cluster1)
+				withCluster(targets[2:4], cluster2)
+				withClusterGroup(targets[0:2], &fleet.ClusterGroup{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "group-1",
 					},
@@ -267,9 +274,8 @@ func Test_manualPartition(t *testing.T) {
 							MatchLabels: map[string]string{"group": "group-1"},
 						},
 					},
-				}, 0, 1)
-				// TODO change withClusterGroup to be passed all the targets to patch, then remove the indices
-				targets = withClusterGroup(targets, &fleet.ClusterGroup{
+				})
+				withClusterGroup(targets[2:4], &fleet.ClusterGroup{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "group-2",
 					},
@@ -278,7 +284,7 @@ func Test_manualPartition(t *testing.T) {
 							MatchLabels: map[string]string{"group": "group-2"},
 						},
 					},
-				}, 2, 3)
+				})
 				return targets
 			},
 			want: []partition{
