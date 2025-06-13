@@ -323,6 +323,30 @@ func Test_manualPartition(t *testing.T) {
 				{Targets: createTargets(3, 4), Status: fleet.PartitionStatus{MaxUnavailable: 2}},
 			},
 		},
+		{
+			name: "should put unmatched clusters in separate partitions at the end using AutoPartitionSize",
+			rollout: &fleet.RolloutStrategy{
+				AutoPartitionSize: &intstr.IntOrString{Type: intstr.String, StrVal: "50%"},
+				Partitions: []fleet.Partition{
+					{Name: "first", ClusterSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"group": "a"}}},
+				},
+			},
+			targetsFn: func() []*Target {
+				targets := createTargets(1, 100)
+				withCluster(targets[0:50], &fleet.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"group": "a",
+						},
+					},
+				})
+				return targets
+			},
+			want: []partition{
+				{Targets: createTargets(1, 50), Status: fleet.PartitionStatus{MaxUnavailable: 50}},
+				{Targets: createTargets(51, 100), Status: fleet.PartitionStatus{MaxUnavailable: 50}},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

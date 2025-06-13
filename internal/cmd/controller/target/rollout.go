@@ -42,6 +42,7 @@ func manualPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]parti
 		partitions []partition
 	)
 
+	partitionsUsed := make([]bool, len(targets))
 	for _, partitionDef := range rollout.Partitions {
 		matcher, err := matcher.NewClusterMatcher(partitionDef.ClusterName, partitionDef.ClusterGroup, partitionDef.ClusterGroupSelector, partitionDef.ClusterSelector)
 		if err != nil {
@@ -50,16 +51,22 @@ func manualPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]parti
 
 		var partitionTargets []*Target
 	targetLoop:
-		for _, target := range targets {
-			for _, cg := range target.ClusterGroups {
-				if matcher.Match(target.Cluster.Name, cg.Name, cg.Labels, target.Cluster.Labels) {
+		for i, target := range targets {
+			if matcher.Match(target.Cluster.Name, "", nil, target.Cluster.Labels) {
+				if !partitionsUsed[i] {
 					partitionTargets = append(partitionTargets, target)
-					continue targetLoop
+					partitionsUsed[i] = true
+					continue
 				}
 			}
-			if len(target.ClusterGroups) == 0 && matcher.Match(target.Cluster.Name, "", nil, target.Cluster.Labels) {
-				partitionTargets = append(partitionTargets, target)
-				continue targetLoop
+			for _, cg := range target.ClusterGroups {
+				if matcher.Match(target.Cluster.Name, cg.Name, cg.Labels, target.Cluster.Labels) {
+					if !partitionsUsed[i] {
+						partitionTargets = append(partitionTargets, target)
+						partitionsUsed[i] = true
+					}
+					continue targetLoop
+				}
 			}
 		}
 
@@ -67,6 +74,20 @@ func manualPartition(rollout *fleet.RolloutStrategy, targets []*Target) ([]parti
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	remainingTargets := make([]*Target, 0, len(targets))
+	for i, gone := range partitionsUsed {
+		if !gone {
+			remainingTargets = append(remainingTargets, targets[i])
+		}
+	}
+	autoPartitioned, err := autoPartition(rollout, remainingTargets)
+	if err != nil {
+		return nil, err
+	}
+	if len(autoPartitioned[0].Targets) > 0 {
+		partitions = append(partitions, autoPartitioned...)
 	}
 
 	return partitions, nil
