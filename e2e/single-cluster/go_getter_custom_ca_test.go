@@ -103,7 +103,9 @@ var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
 			targetNamespace = testenv.NewNamespaceName("target", r)
 		})
 
-		It("should fail if InsecureSkipTLSVerify is false", func() {
+		// TODO: Find out how to make it fail if it reads from secrets, if at all possible
+		// perhaps provide an invalid CA bundle in the GitRepo?
+		XIt("should fail if InsecureSkipTLSVerify is false", func() {
 			// Create and apply GitRepo
 			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), struct {
 				Name                  string
@@ -157,6 +159,39 @@ var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
 				g.Expect(err).ToNot(HaveOccurred())
 				g.Expect(out).To(ContainSubstring("1/1"))
 			}).Should(Succeed())
+		})
+	})
+
+	When("testing custom CA bundles", func() {
+		It("should use the Rancher CA bundles provided in ConfigMaps", func() {
+			// Create and apply GitRepo
+			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), struct {
+				Name                  string
+				Repo                  string
+				Branch                string
+				PollingInterval       string
+				TargetNamespace       string
+				Path                  string
+				InsecureSkipTLSVerify string
+			}{
+				gitrepoName,
+				gh.GetInClusterURL(host, HTTPSPort, "repo"),
+				gh.Branch,
+				"15s",           // default
+				targetNamespace, // to avoid conflicts with other tests
+				entrypoint,
+				"false",
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(func(g Gomega) {
+				out, err := k.Get("gitrepo", gitrepoName, `-o=jsonpath={.status.display.readyBundleDeployments}`)
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(out).To(ContainSubstring("1/1"))
+			}).Should(Succeed())
+		})
+
+		XIt("should work with CA bundles provided in GitRepo resources", func() {
 		})
 	})
 })

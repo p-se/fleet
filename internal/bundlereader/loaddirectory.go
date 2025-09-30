@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -197,6 +198,8 @@ func loadDirectory(ctx context.Context, opts loadOpts, dir directory) ([]fleet.B
 
 // GetContent uses go-getter (and Helm for OCI) to read the files from directories and servers.
 func GetContent(ctx context.Context, base, source, version string, auth Auth, disableDepsUpdate bool, ignoreApplyConfigs []string) (map[string][]byte, error) {
+	log.Printf("(PSE) auth: %+v", auth)
+
 	temp, err := os.MkdirTemp("", "fleet")
 	if err != nil {
 		return nil, err
@@ -252,6 +255,22 @@ func GetContent(ctx context.Context, base, source, version string, auth Auth, di
 		Dst:     temp,
 		Pwd:     base,
 		GetMode: getter.ModeDir,
+	}
+
+	if auth.CABundle != nil {
+		log.Printf("(PSE) auth.CABundle is set, writing to temp file and setting GIT_SSL_CAINFO")
+		tmpFile, err := os.CreateTemp("", "ca-bundle")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(tmpFile.Name())
+		if _, err := tmpFile.Write(auth.CABundle); err != nil {
+			return nil, err
+		}
+		if err := os.Setenv("GIT_SSL_CAINFO", tmpFile.Name()); err != nil {
+			return nil, err
+		}
+		defer os.Unsetenv("GIT_SSL_CAINFO")
 	}
 
 	if _, err := client.Get(ctx, req); err != nil {
