@@ -153,6 +153,10 @@ func newGit() *Git {
 	return g
 }
 
+func (g *Git) SetBranch(branch string) {
+	g.Branch = branch
+}
+
 func (g *Git) GetURL() string {
 	return g.Auth.getURL()
 }
@@ -171,9 +175,18 @@ func (g *Git) GetInClusterURL(host string, port int, repoName string) string {
 // g's URL.
 func (g *Git) Create(repodir string, from string, subdir string) (*git.Repository, error) {
 	s := osfs.New(path.Join(repodir, ".git"))
-	repo, err := git.Init(filesystem.NewStorage(s, cache.NewObjectLRUDefault()), osfs.New(repodir))
+	storer := filesystem.NewStorage(s, cache.NewObjectLRUDefault())
+	fs := osfs.New(repodir)
+	repo, err := git.Init(storer, fs)
 	if err != nil {
-		return nil, err
+		if err == git.ErrRepositoryAlreadyExists {
+			repo, err = git.Open(storer, fs)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	_, err = repo.CreateRemote(&config.RemoteConfig{
@@ -181,7 +194,9 @@ func (g *Git) Create(repodir string, from string, subdir string) (*git.Repositor
 		URLs: []string{g.Auth.getURL()},
 	})
 	if err != nil {
-		return nil, err
+		if err != git.ErrRemoteExists {
+			return nil, err
+		}
 	}
 
 	cmd := exec.Command("cp", "-a", from, path.Join(repodir, subdir)) //nolint:gosec // test code should never receive user input
