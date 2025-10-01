@@ -18,7 +18,7 @@ import (
 	"github.com/rancher/fleet/e2e/testenv/kubectl"
 )
 
-var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
+var _ = Describe("Testing go-getter", Label("infra-setup"), func() {
 	const (
 		sleeper    = "sleeper"
 		entrypoint = "entrypoint"
@@ -74,7 +74,7 @@ var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
 		)
 		Expect(err).NotTo(HaveOccurred())
 
-		_, err = gh.Create(cloneDir, tmpAssetDir, entrypoint)
+		_, err = gh.Add(cloneDir, tmpAssetDir, entrypoint)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -107,22 +107,14 @@ var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
 		// perhaps provide an invalid CA bundle in the GitRepo?
 		XIt("should fail if InsecureSkipTLSVerify is false", func() {
 			// Create and apply GitRepo
-			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), struct {
-				Name                  string
-				Repo                  string
-				Branch                string
-				PollingInterval       string
-				TargetNamespace       string
-				Path                  string
-				InsecureSkipTLSVerify string
-			}{
-				gitrepoName,
-				gh.GetInClusterURL(host, HTTPSPort, "repo"),
-				gh.Branch,
-				"15s",           // default
-				targetNamespace, // to avoid conflicts with other tests
-				entrypoint,
-				"false",
+			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), gitRepoTestValues{
+				Name:                  gitrepoName,
+				Repo:                  gh.GetInClusterURL(host, HTTPSPort, "repo"),
+				Branch:                gh.Branch,
+				PollingInterval:       "15s",           // default
+				TargetNamespace:       targetNamespace, // to avoid conflicts with other tests
+				Path:                  entrypoint,
+				InsecureSkipTLSVerify: false,
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -135,22 +127,14 @@ var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
 
 		It("should succeed if InsecureSkipTLSVerify is true", func() {
 			// Create and apply GitRepo
-			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), struct {
-				Name                  string
-				Repo                  string
-				Branch                string
-				PollingInterval       string
-				TargetNamespace       string
-				Path                  string
-				InsecureSkipTLSVerify string
-			}{
-				gitrepoName,
-				gh.GetInClusterURL(host, HTTPSPort, "repo"),
-				gh.Branch,
-				"15s",           // default
-				targetNamespace, // to avoid conflicts with other tests
-				entrypoint,
-				"true",
+			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), gitRepoTestValues{
+				Name:                  gitrepoName,
+				Repo:                  gh.GetInClusterURL(host, HTTPSPort, "repo"),
+				Branch:                gh.Branch,
+				PollingInterval:       "15s",           // default
+				TargetNamespace:       targetNamespace, // to avoid conflicts with other tests
+				Path:                  entrypoint,
+				InsecureSkipTLSVerify: true,
 			})
 			Expect(err).ToNot(HaveOccurred())
 
@@ -165,22 +149,14 @@ var _ = FDescribe("Testing go-getter", Label("infra-setup"), func() {
 	When("testing custom CA bundles", func() {
 		It("should use the Rancher CA bundles provided in ConfigMaps", func() {
 			// Create and apply GitRepo
-			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), struct {
-				Name                  string
-				Repo                  string
-				Branch                string
-				PollingInterval       string
-				TargetNamespace       string
-				Path                  string
-				InsecureSkipTLSVerify string
-			}{
-				gitrepoName,
-				gh.GetInClusterURL(host, HTTPSPort, "repo"),
-				gh.Branch,
-				"15s",           // default
-				targetNamespace, // to avoid conflicts with other tests
-				entrypoint,
-				"false",
+			err := testenv.ApplyTemplate(k, testenv.AssetPath("gitrepo/gitrepo.yaml"), gitRepoTestValues{
+				Name:                  gitrepoName,
+				Repo:                  gh.GetInClusterURL(host, HTTPSPort, "repo"),
+				Branch:                gh.Branch,
+				PollingInterval:       "15s",           // default
+				TargetNamespace:       targetNamespace, // to avoid conflicts with other tests
+				Path:                  entrypoint,
+				InsecureSkipTLSVerify: false,
 			})
 			Expect(err).ToNot(HaveOccurred())
 
