@@ -39,6 +39,7 @@ type gitRepoTestValues struct {
 	TargetNamespace       string
 	Path                  string
 	InsecureSkipTLSVerify bool
+	CABundle              string
 }
 
 var _ = Describe("Monitoring Git repos via HTTP for change", Label("infra-setup"), func() {

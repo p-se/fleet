@@ -18,4 +18,10 @@ spec:
   {{- else }}
   - examples
   {{- end }}
+  {{- if .CABundle}}
+  caBundle: {{.CABundle}}
+  {{- end}}
+  
+
+
   
