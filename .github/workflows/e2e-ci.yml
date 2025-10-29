@@ -41,9 +41,6 @@ jobs:
 
     steps:
       -
-        name: Start steal meter
-        uses: ./.github/actions/steal-meter
-      -
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
@@ -52,6 +49,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
           check-latest: true
+      -
+        name: Start steal meter
+        uses: ./.github/actions/steal-meter
       -
         name: Install Ginkgo CLI
         run: go install github.com/onsi/ginkgo/v2/ginkgo
