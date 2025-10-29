@@ -1,0 +1,16 @@
+{
+  "name": "steal-meter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx @vercel/ncc build src/main.mjs -o dist/main && npx @vercel/ncc build src/post.mjs -o dist/post"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  }
+}
