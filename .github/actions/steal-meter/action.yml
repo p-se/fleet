@@ -1,0 +1,7 @@
+---
+name: "Steal Meter"
+description: "Measure steal time across the entire job"
+runs:
+  using: "node20"
+  main: "main.mjs"
+  post: "post.mjs"
