@@ -2,6 +2,7 @@
 name: E2E Fleet
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -48,6 +49,113 @@ jobs:
         with:
           go-version-file: 'go.mod'
           check-latest: true
+      -
+        name: Noisy Neighbors
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          DURATION="${DURATION:-10}"   # seconds to run the probe
+          WORKERS="${WORKERS:-0}"      # default: use all CPUs; set to cap parallelism
+
+          echo "=== Noisy neighbor probe ==="
+          date
+          uname -a || true
+
+          CPUS="$(nproc || echo 1)"
+          [[ "$WORKERS" -gt 0 ]] || WORKERS="$CPUS"
+          echo "CPUs: $CPUS  | Workers: $WORKERS  | Duration: ${DURATION}s"
+
+          # Resolve cgroup v2 cpu.stat for this process
+          CGROUP_SUBPATH="$(awk -F: '$1=="0"{print $3}' /proc/self/cgroup || true)"
+          CG_BASE="/sys/fs/cgroup${CGROUP_SUBPATH}"
+          CPU_STAT_PATH="${CG_BASE}/cpu.stat"
+          if [[ ! -f "$CPU_STAT_PATH" ]]; then
+            # Fallbacks for odd layouts
+            [[ -f "/sys/fs/cgroup/cpu.stat" ]] && CPU_STAT_PATH="/sys/fs/cgroup/cpu.stat"
+          fi
+
+          print_cpu_stat() {
+            if [[ -f "$CPU_STAT_PATH" ]]; then
+              echo "--- cgroup cpu.stat ($CPU_STAT_PATH) ---"
+              cat "$CPU_STAT_PATH"
+            else
+              echo "--- cgroup cpu.stat not found ---"
+            fi
+          }
+
+          print_psi() {
+            for r in cpu io memory; do
+              local p="/proc/pressure/$r"
+              if [[ -f "$p" ]]; then
+                echo "--- PSI $r ---"
+                cat "$p"
+              fi
+            done
+          }
+
+          print_load() {
+            echo "--- Load /proc/loadavg ---"
+            cat /proc/loadavg
+          }
+
+          echo
+          echo "== Baseline =="
+          print_load
+          print_psi
+          print_cpu_stat
+
+          echo
+          echo "== Running CPU workload for ${DURATION}s with ${WORKERS} worker(s)... =="
+
+          # Worker: CPU-bound hash of endless stream; avoids disk and is available on runners
+          run_worker() {
+            timeout "${DURATION}s" bash -c 'yes | md5sum > /dev/null'
+          }
+
+          PIDS=()
+          for _ in $(seq 1 "$WORKERS"); do
+            run_worker &
+            PIDS+=("$!")
+          done
+
+          # While workers run, sample PSI every second (lightweight)
+          SAMPLES=()
+          for ((i=0; i<"${DURATION}"; i++)); do
+            if [[ -f /proc/pressure/cpu ]]; then
+              line=$(sed -n '1p' /proc/pressure/cpu)   # "some ..." line
+              SAMPLES+=("$(date +%H:%M:%S) $line")
+            fi
+            sleep 1
+          done
+
+          # Wait for workers
+          for p in "${PIDS[@]}"; do wait "$p" 2>/dev/null || true; done
+
+          echo
+          echo "== After workload =="
+          print_load
+          print_psi
+          print_cpu_stat
+
+          if [[ ${#SAMPLES[@]} -gt 0 ]]; then
+            echo
+            echo "== PSI cpu 'some' samples during run (1/sec) =="
+            printf '%s\n' "${SAMPLES[@]}"
+          fi
+
+          echo
+          echo "== Interpretation hints =="
+          cat <<'HINTS'
+          • If loadavg (first number) >> CPU count while running, the run queue is saturated. That can be your own parallelism, platform limits, or neighbors.
+          • In PSI:
+            - cpu: 'some' rising toward 100% means tasks frequently stalled on CPU; 'full' > 0% means the whole workload often couldn't run at all.
+            - io/memory pressure > 0% implies stalls waiting on disk/cache/mem — noisy neighbors or shared resource contention.
+          • In cpu.stat:
+            - nr_throttled / throttled_usec increasing => cgroup CPU quota throttling (platform-imposed). That looks like "steal", but it's policy not hypervisor steal.
+          • If PSI stays near zero, load ~= workers, and no throttling, the bottleneck is likely your code or chosen parallelism, not neighbors.
+          HINTS
+
       -
         name: Install Ginkgo CLI
         run: go install github.com/onsi/ginkgo/v2/ginkgo
