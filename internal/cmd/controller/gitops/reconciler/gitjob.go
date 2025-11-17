@@ -442,6 +442,35 @@ func (r *GitJobReconciler) newJobSpec(ctx context.Context, gitrepo *v1alpha1.Git
 
 	zero := int32(0)
 
+	containers := []corev1.Container{
+		{
+			Name:         "fleet",
+			Image:        r.Image,
+			Command:      []string{"log.sh"},
+			Args:         append(args, paths...),
+			WorkingDir:   "/workspace/source",
+			VolumeMounts: volumeMounts,
+			Env:          envs,
+			SecurityContext: &corev1.SecurityContext{
+				AllowPrivilegeEscalation: &[]bool{false}[0],
+				ReadOnlyRootFilesystem:   &[]bool{true}[0],
+				Privileged:               &[]bool{false}[0],
+				RunAsNonRoot:             &[]bool{true}[0],
+				SeccompProfile: &corev1.SeccompProfile{
+					Type: corev1.SeccompProfileTypeRuntimeDefault,
+				},
+				Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
+			},
+		},
+	}
+
+	if isDebugFleetApplyEnabled() {
+		// Remove command as that one is provided by the debug image
+		containers[0].Command = []string{}
+		// Use the debug image
+		containers[0].Image = "rancher/fleet:debug"
+	}
+
 	return &batchv1.JobSpec{
 		BackoffLimit: &zero,
 		Template: corev1.PodTemplateSpec{
@@ -455,28 +484,8 @@ func (r *GitJobReconciler) newJobSpec(ctx context.Context, gitrepo *v1alpha1.Git
 				},
 				ServiceAccountName: saName,
 				RestartPolicy:      corev1.RestartPolicyNever,
-				Containers: []corev1.Container{
-					{
-						Name:         "fleet",
-						Image:        r.Image,
-						Command:      []string{"log.sh"},
-						Args:         append(args, paths...),
-						WorkingDir:   "/workspace/source",
-						VolumeMounts: volumeMounts,
-						Env:          envs,
-						SecurityContext: &corev1.SecurityContext{
-							AllowPrivilegeEscalation: &[]bool{false}[0],
-							ReadOnlyRootFilesystem:   &[]bool{true}[0],
-							Privileged:               &[]bool{false}[0],
-							RunAsNonRoot:             &[]bool{true}[0],
-							SeccompProfile: &corev1.SeccompProfile{
-								Type: corev1.SeccompProfileTypeRuntimeDefault,
-							},
-							Capabilities: &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						},
-					},
-				},
-				NodeSelector: nodeSelector,
+				Containers:         containers,
+				NodeSelector:       nodeSelector,
 				Tolerations: []corev1.Toleration{
 					{
 						Key:      "cattle.io/os",
@@ -647,9 +656,18 @@ func argsAndEnvs(
 	helmInsecureSkipTLS bool,
 	helmBasicHTTP bool,
 ) ([]string, []corev1.EnvVar) {
-	args := []string{
-		"fleet",
-		"apply",
+	var args []string
+	if isDebugFleetApplyEnabled() {
+		args = []string{
+			"/usr/bin/fleet",
+			"--",
+			"apply",
+		}
+	} else {
+		args = []string{
+			"fleet",
+			"apply",
+		}
 	}
 
 	if logger.V(1).Enabled() {
@@ -1003,4 +1021,13 @@ func caBundleName(obj *v1alpha1.GitRepo) string {
 
 func rancherCABundleName(obj *v1alpha1.GitRepo) string {
 	return fmt.Sprintf("%s-rancher-cabundle", obj.Name)
+}
+
+func isDebugFleetApplyEnabled() bool {
+	if v, ok := os.LookupEnv("FLEET_DEBUG_FLEET_APPLY"); ok {
+		if debugEnabled, err := strconv.ParseBool(v); err == nil && debugEnabled {
+			return true
+		}
+	}
+	return false
 }
