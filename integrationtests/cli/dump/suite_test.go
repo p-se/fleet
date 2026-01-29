@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	"k8s.io/client-go/rest"
@@ -57,9 +58,9 @@ var _ = AfterSuite(func() {
 
 // fleetDump simulates fleet dump CLI online execution
 func fleetDump(path string) error {
-	return dump.Create(context.Background(), cfg, path, dump.Options{})
+	return dump.Create(context.Background(), cfg, path, dump.Options{}, 0)
 }
 
 func fleetDumpWithOptions(path string, opts dump.Options) error {
-	return dump.Create(context.Background(), cfg, path, opts)
+	return dump.Create(context.Background(), cfg, path, opts, 0)
 }

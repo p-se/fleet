@@ -12,6 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/rancher/fleet/e2e/testenv"
 	"github.com/rancher/fleet/internal/cmd/cli/dump"
 )
@@ -48,7 +49,7 @@ var _ = Describe("Fleet dump", Label("sharding"), func() {
 
 			tgzPath := "test.tgz"
 
-			err = dump.Create(context.Background(), restConfig, tgzPath, dump.Options{})
+			err = dump.Create(context.Background(), restConfig, tgzPath, dump.Options{}, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			defer func() {

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -34,6 +35,7 @@ func NewDump() *cobra.Command {
 type Dump struct {
 	FleetClient
 	DumpPath            string `usage:"Destination path for the dump" short:"p"`
+	FetchLimit          int64  `usage:"Limit number of items per resource that are fetched at once (0 means no limit)" short:"l" default:"500"`
 	WithSecrets         bool   `usage:"Include secrets with full data"`
 	WithSecretsMetadata bool   `usage:"Include secrets with metadata only"`
 	WithContent         bool   `usage:"Include Content resources with full data"`
@@ -68,6 +70,10 @@ func (d *Dump) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if d.FetchLimit < 0 {
+		d.FetchLimit = 0
+	}
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zopts)))
 	ctx := log.IntoContext(cmd.Context(), ctrl.Log)
 
@@ -78,5 +84,5 @@ func (d *Dump) Run(cmd *cobra.Command, args []string) error {
 		WithContentMetadata: d.WithContentMetadata,
 	}
 
-	return dump.Create(ctx, cfg, d.DumpPath, opts)
+	return dump.Create(ctx, cfg, d.DumpPath, opts, d.FetchLimit)
 }
