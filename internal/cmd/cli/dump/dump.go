@@ -283,11 +283,12 @@ func addSecretsToArchive(
 // - cattle-fleet-local-system
 // - each cluster's namespace
 func getNamespaces(ctx context.Context, dynamic dynamic.Interface, logger logr.Logger, fetchLimit int64) ([]string, error) {
-	res := []string{
-		"default",
-		"kube-system",
-		config.DefaultNamespace,
-		"cattle-fleet-local-system",
+	// Use a map to deduplicate namespaces
+	nsMap := map[string]struct{}{
+		"default":                   {},
+		"kube-system":               {},
+		config.DefaultNamespace:     {},
+		"cattle-fleet-local-system": {},
 	}
 
 	clusRscID := schema.GroupVersionResource{
@@ -321,7 +322,7 @@ func getNamespaces(ctx context.Context, dynamic dynamic.Interface, logger logr.L
 				continue
 			}
 
-			res = append(res, c.Namespace)
+			nsMap[c.Namespace] = struct{}{}
 		}
 
 		c := clusters.GetContinue()
@@ -329,6 +330,12 @@ func getNamespaces(ctx context.Context, dynamic dynamic.Interface, logger logr.L
 			break
 		}
 		lo.Continue = c
+	}
+
+	// Convert map to slice
+	res := make([]string, 0, len(nsMap))
+	for ns := range nsMap {
+		res = append(res, ns)
 	}
 
 	return res, nil

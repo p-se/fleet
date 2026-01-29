@@ -38,8 +38,14 @@ func Test_getNamespaces(t *testing.T) {
 		},
 		&v1alpha1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster1",
+				Name:      "cluster2",
 				Namespace: "ns2",
+			},
+		},
+		&v1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster3",
+				Namespace: "ns1", // Same namespace as cluster1
 			},
 		},
 		&corev1.ConfigMap{ // should not have its namespace listed (not a cluster)
@@ -75,6 +81,15 @@ func Test_getNamespaces(t *testing.T) {
 
 	if len(namespaces) != len(expectedNS) {
 		t.Fatalf("expected %d namespaces, got %d: %v", len(expectedNS), len(namespaces), namespaces)
+	}
+
+	// Check for duplicates
+	seen := make(map[string]bool)
+	for _, ns := range namespaces {
+		if seen[ns] {
+			t.Fatalf("namespace %s appears more than once in result", ns)
+		}
+		seen[ns] = true
 	}
 
 	for _, got := range namespaces {
