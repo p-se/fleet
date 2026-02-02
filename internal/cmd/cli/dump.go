@@ -78,11 +78,12 @@ func (d *Dump) Run(cmd *cobra.Command, args []string) error {
 	ctx := log.IntoContext(cmd.Context(), ctrl.Log)
 
 	opts := dump.Options{
+		FetchLimit:          d.FetchLimit,
 		WithSecrets:         d.WithSecrets,
 		WithSecretsMetadata: d.WithSecretsMetadata,
 		WithContent:         d.WithContent,
 		WithContentMetadata: d.WithContentMetadata,
 	}
 
-	return dump.Create(ctx, cfg, d.DumpPath, opts, d.FetchLimit)
+	return dump.Create(ctx, cfg, d.DumpPath, opts)
 }

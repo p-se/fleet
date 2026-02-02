@@ -58,9 +58,9 @@ var _ = AfterSuite(func() {
 
 // fleetDump simulates fleet dump CLI online execution
 func fleetDump(path string) error {
-	return dump.Create(context.Background(), cfg, path, dump.Options{}, 0)
+	return dump.Create(context.Background(), cfg, path, dump.Options{})
 }
 
 func fleetDumpWithOptions(path string, opts dump.Options) error {
-	return dump.Create(context.Background(), cfg, path, opts, 0)
+	return dump.Create(context.Background(), cfg, path, opts)
 }

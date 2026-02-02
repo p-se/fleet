@@ -39,13 +39,14 @@ import (
 )
 
 type Options struct {
+	FetchLimit          int64
 	WithSecrets         bool
 	WithSecretsMetadata bool
 	WithContent         bool
 	WithContentMetadata bool
 }
 
-func Create(ctx context.Context, cfg *rest.Config, path string, opt Options, fetchLimit int64) error {
+func Create(ctx context.Context, cfg *rest.Config, path string, opt Options) error {
 	c, err := createClient(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create Kubernetes client: %w", err)
@@ -56,10 +57,10 @@ func Create(ctx context.Context, cfg *rest.Config, path string, opt Options, fet
 		return fmt.Errorf("failed to create dynamic Kubernetes client: %w", err)
 	}
 
-	return CreateWithClients(ctx, cfg, d, c, path, opt, fetchLimit)
+	return CreateWithClients(ctx, cfg, d, c, path, opt)
 }
 
-func CreateWithClients(ctx context.Context, cfg *rest.Config, d dynamic.Interface, c client.Client, path string, opt Options, fetchLimit int64) error {
+func CreateWithClients(ctx context.Context, cfg *rest.Config, d dynamic.Interface, c client.Client, path string, opt Options) error {
 	logger := log.FromContext(ctx).WithName("fleet-dump")
 
 	tgz, err := os.Create(path)
@@ -82,7 +83,7 @@ func CreateWithClients(ctx context.Context, cfg *rest.Config, d dynamic.Interfac
 	}
 
 	for _, t := range types {
-		if err := addObjectsToArchive(ctx, d, logger, "fleet.cattle.io", "v1alpha1", t, w, fetchLimit); err != nil {
+		if err := addObjectsToArchive(ctx, d, logger, "fleet.cattle.io", "v1alpha1", t, w, opt.FetchLimit); err != nil {
 			return fmt.Errorf("failed to add %s to archive: %w", t, err)
 		}
 	}
@@ -90,7 +91,7 @@ func CreateWithClients(ctx context.Context, cfg *rest.Config, d dynamic.Interfac
 	if opt.WithContent || opt.WithContentMetadata {
 		// If both full content and metadata-only are requested, prefer full content
 		contentMetadataOnly := opt.WithContentMetadata && !opt.WithContent
-		if err := addContentsToArchive(ctx, d, logger, w, contentMetadataOnly, fetchLimit); err != nil {
+		if err := addContentsToArchive(ctx, d, logger, w, contentMetadataOnly, opt.FetchLimit); err != nil {
 			return fmt.Errorf("failed to add contents to archive: %w", err)
 		}
 	}
@@ -98,16 +99,16 @@ func CreateWithClients(ctx context.Context, cfg *rest.Config, d dynamic.Interfac
 	if opt.WithSecrets || opt.WithSecretsMetadata {
 		// If both full secrets and metadata-only are requested, prefer full secrets
 		secretsMetadataOnly := opt.WithSecretsMetadata && !opt.WithSecrets
-		if err := addSecretsToArchive(ctx, d, c, logger, w, secretsMetadataOnly, fetchLimit); err != nil {
+		if err := addSecretsToArchive(ctx, d, c, logger, w, secretsMetadataOnly, opt.FetchLimit); err != nil {
 			return fmt.Errorf("failed to add secrets to archive: %w", err)
 		}
 	}
 
-	if err := addEventsToArchive(ctx, d, c, logger, w, fetchLimit); err != nil {
+	if err := addEventsToArchive(ctx, d, c, logger, w, opt.FetchLimit); err != nil {
 		return fmt.Errorf("failed to add events to archive: %w", err)
 	}
 
-	if err := addMetricsToArchive(ctx, c, logger, cfg, w, fetchLimit); err != nil {
+	if err := addMetricsToArchive(ctx, c, logger, cfg, w, opt.FetchLimit); err != nil {
 		return fmt.Errorf("failed to add metrics to archive: %w", err)
 	}
 
