@@ -279,12 +279,13 @@ func Test_addObjectsToArchive_pagination(t *testing.T) {
 		list.SetKind("ClusterList")
 
 		callCount++
-		if callCount == 1 {
+		switch callCount {
+		case 1:
 			// First page: return first 2 clusters with continue token
 			list.SetResourceVersion("1")
 			list.SetContinue("continue-token")
 			list.Items = []unstructured.Unstructured{*objs[0], *objs[1]}
-		} else if callCount == 2 {
+		case 2:
 			// Second page: return last cluster
 			list.SetResourceVersion("2")
 			list.SetContinue("")
