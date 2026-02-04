@@ -844,36 +844,34 @@ func collectBundleNames(ctx context.Context, d dynamic.Interface, namespace stri
 	return names, nil
 }
 
-// collectContentIDs fetches content IDs referenced by bundles in the given namespace
+// collectContentIDs fetches content IDs referenced by BundleDeployments associated with bundles in the given namespace.
+// It queries BundleDeployments across all namespaces using the fleet.cattle.io/bundle-namespace label selector,
+// then extracts content names from the fleet.cattle.io/content-name label.
 func collectContentIDs(ctx context.Context, d dynamic.Interface, namespace string, fetchLimit int64) ([]string, error) {
 	rID := schema.GroupVersionResource{
 		Group:    "fleet.cattle.io",
 		Version:  "v1alpha1",
-		Resource: "bundles",
+		Resource: "bundledeployments",
 	}
 
 	contentIDMap := make(map[string]bool)
-	lo := metav1.ListOptions{Limit: fetchLimit}
+	lo := metav1.ListOptions{
+		Limit:         fetchLimit,
+		LabelSelector: fmt.Sprintf("fleet.cattle.io/bundle-namespace=%s", namespace),
+	}
 
 	for {
-		list, err := d.Resource(rID).Namespace(namespace).List(ctx, lo)
+		// List BundleDeployments across all namespaces with the bundle-namespace label
+		list, err := d.Resource(rID).List(ctx, lo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list bundles: %w", err)
+			return nil, fmt.Errorf("failed to list bundledeployments: %w", err)
 		}
 
 		for _, item := range list.Items {
-			// Convert to Bundle to access spec.resources
-			var bundle fleet.Bundle
-			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, &bundle); err != nil {
-				// Skip malformed bundles
-				continue
-			}
-
-			// Collect content IDs from bundle resources
-			for _, resource := range bundle.Spec.Resources {
-				if resource.Content != "" {
-					contentIDMap[resource.Content] = true
-				}
+			// Extract the content-name label
+			labels := item.GetLabels()
+			if contentName, ok := labels["fleet.cattle.io/content-name"]; ok && contentName != "" {
+				contentIDMap[contentName] = true
 			}
 		}
 
