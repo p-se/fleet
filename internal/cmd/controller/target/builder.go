@@ -15,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	fleetutil "github.com/rancher/fleet/internal/cmd/controller/errorutil"
 	"github.com/rancher/fleet/internal/cmd/controller/labelselectors"
 	"github.com/rancher/fleet/internal/cmd/controller/options"
 	"github.com/rancher/fleet/internal/cmd/controller/target/matcher"
@@ -141,8 +142,7 @@ func (m *Manager) Targets(ctx context.Context, bundle *fleet.Bundle, manifestID 
 			secret := &corev1.Secret{}
 			if err := m.reader.Get(ctx, client.ObjectKey{Namespace: bd.Namespace, Name: bd.Name}, secret); err != nil {
 				if apierrors.IsNotFound(err) {
-					logger.V(1).Info("failed to get options secret for bundledeployment %s/%s, this is likely temporary", bd.Namespace, bd.Name)
-					continue
+					return nil, fmt.Errorf("%w: options secret for bundledeployment %s/%s not found, this is likely temporary", fleetutil.ErrRetryable, bd.Namespace, bd.Name)
 				}
 				return nil, err
 			}

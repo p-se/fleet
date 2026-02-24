@@ -27,11 +27,13 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -1549,5 +1551,120 @@ func TestReconcile_DownstreamResources_FeatureDisabled(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// secretNotFoundReader wraps a client.Reader and returns NotFound for a
+// specific secret name/namespace, simulating transient API server pressure
+// where the options secret cannot be read inside Targets().
+type secretNotFoundReader struct {
+	client.Reader
+	name      string
+	namespace string
+}
+
+func (r *secretNotFoundReader) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if key.Name == r.name && key.Namespace == r.namespace {
+		return k8serrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, key.Name)
+	}
+	return r.Reader.Get(ctx, key, obj, opts...)
+}
+
+// TestReconcile_OptionsSecretNotFound_ReturnsError verifies that when
+// Targets() encounters a transient NotFound for an options secret, Reconcile
+// returns an error so the controller framework requeues naturally — rather
+// than silently continuing and corrupting the secret with empty values.
+func TestReconcile_OptionsSecretNotFound_ReturnsError(t *testing.T) {
+	const (
+		bundleName  = "my-bundle"
+		bundleNS    = "fleet-default"
+		clusterName = "cluster-one"
+		clusterNS   = "cluster-one-ns"
+	)
+
+	scheme := runtime.NewScheme()
+	utilruntime.Must(fleetv1.AddToScheme(scheme))
+	utilruntime.Must(corev1.AddToScheme(scheme))
+
+	bundle := &fleetv1.Bundle{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       bundleName,
+			Namespace:  bundleNS,
+			Finalizers: []string{finalize.BundleFinalizer},
+		},
+		Spec: fleetv1.BundleSpec{
+			BundleDeploymentOptions: fleetv1.BundleDeploymentOptions{
+				Helm: &fleetv1.HelmOptions{
+					Values: &fleetv1.GenericMap{
+						Data: map[string]interface{}{"replicas": float64(3)},
+					},
+				},
+			},
+			Targets: []fleetv1.BundleTarget{
+				{ClusterSelector: &metav1.LabelSelector{}},
+			},
+		},
+	}
+
+	cluster := &fleetv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      clusterName,
+			Namespace: bundleNS,
+		},
+		Status: fleetv1.ClusterStatus{
+			Namespace: clusterNS,
+		},
+	}
+
+	fc := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(
+			bundle, cluster,
+			&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: clusterNS}},
+			&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: bundleNS}},
+		).
+		WithStatusSubresource(&fleetv1.Bundle{}).
+		Build()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	storeMock := mocks.NewMockStore(mockCtrl)
+	storeMock.EXPECT().Store(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	ctx := context.Background()
+	req := ctrl.Request{NamespacedName: types.NamespacedName{Name: bundleName, Namespace: bundleNS}}
+
+	// First reconcile: BD does not yet exist, so Targets() never looks up
+	// an options secret. The BD and its secret are created correctly.
+	r := &reconciler.BundleReconciler{
+		Client:  fc,
+		Scheme:  scheme,
+		Builder: target.New(fc, fc),
+		Store:   storeMock,
+	}
+	if _, err := r.Reconcile(ctx, req); err != nil {
+		t.Fatalf("first Reconcile returned unexpected error: %v", err)
+	}
+
+	createdBD := &fleetv1.BundleDeployment{}
+	if err := fc.Get(ctx, types.NamespacedName{Name: bundleName, Namespace: clusterNS}, createdBD); err != nil {
+		t.Fatalf("BD not created by first reconcile: %v", err)
+	}
+	if createdBD.Spec.ValuesHash == "" {
+		t.Fatal("precondition failed: BD should have ValuesHash set after first reconcile")
+	}
+
+	// Second reconcile: inject a reader that returns NotFound for the options
+	// secret. Reconcile must return an error so the framework requeues.
+	bugReader := &secretNotFoundReader{Reader: fc, name: bundleName, namespace: clusterNS}
+	r.Builder = target.New(fc, bugReader)
+
+	_, err := r.Reconcile(ctx, req)
+	if err == nil {
+		t.Fatal("second Reconcile should have returned an error when the options secret is not found")
+	}
+	if !errors.Is(err, errorutil.ErrRetryable) {
+		t.Errorf("expected a retryable error, got: %v", err)
 	}
 }
