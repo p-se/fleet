@@ -99,6 +99,13 @@ type BundleDeploymentOptions struct {
 	// DeleteNamespace can be used to delete the deployed namespace when removing the bundle
 	DeleteNamespace bool `json:"deleteNamespace,omitempty"`
 
+	// CreateNamespace can be used to create the default namespace when deploying a bundle,
+	// even if the bundle contains no resources. This is useful when a namespace needs to be
+	// created for another bundle to depend on via dependsOn, without requiring any other
+	// resources to be deployed. The namespace will be created with any labels and annotations
+	// specified in namespaceLabels and namespaceAnnotations.
+	CreateNamespace bool `json:"createNamespace,omitempty"`
+
 	//IgnoreOptions can be used to ignore fields when monitoring the bundle.
 	// +nullable
 	IgnoreOptions *IgnoreOptions `json:"ignore,omitempty"`

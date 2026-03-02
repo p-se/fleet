@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// HelmChart applies overlays to "manifest"-style gitrepos and transforms the
+// HelmChart applies overlays to manifest-style gitrepos and transforms the
 // manifest into a helm chart tgz
 func HelmChart(name string, m *manifest.Manifest, options fleet.BundleDeploymentOptions) (io.Reader, error) {
 	var (
@@ -38,12 +39,79 @@ func HelmChart(name string, m *manifest.Manifest, options fleet.BundleDeployment
 		}
 	}
 
+	if options.CreateNamespace {
+		m, err = injectNamespaceResource(m, options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	m, err = process(name, m, style)
 	if err != nil {
 		return nil, err
 	}
 
 	return m.ToTarGZ()
+}
+
+// injectNamespaceResource adds a Namespace manifest to the bundle resources when
+// CreateNamespace is set. The namespace name is taken from TargetNamespace if set,
+// otherwise from DefaultNamespace. Labels and annotations from NamespaceLabels and
+// NamespaceAnnotations are embedded directly in the Namespace manifest.
+//
+// This makes the namespace a first-class Helm-tracked resource rather than
+// relying on Helm implicit CreateNamespace behaviour, giving it a proper lifecycle
+// and making it a reliable dependsOn target for other bundles.
+func injectNamespaceResource(m *manifest.Manifest, options fleet.BundleDeploymentOptions) (*manifest.Manifest, error) {
+	nsName := options.TargetNamespace
+	if nsName == "" {
+		nsName = options.DefaultNamespace
+	}
+	if nsName == "" {
+		return m, nil
+	}
+
+	ns := map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Namespace",
+		"metadata": map[string]interface{}{
+			"name": nsName,
+		},
+	}
+
+	if meta, ok := ns["metadata"].(map[string]interface{}); ok {
+		if len(options.NamespaceLabels) > 0 {
+			labels := make(map[string]interface{}, len(options.NamespaceLabels))
+			for k, v := range options.NamespaceLabels {
+				labels[k] = v
+			}
+			meta["labels"] = labels
+		}
+		if len(options.NamespaceAnnotations) > 0 {
+			annotations := make(map[string]interface{}, len(options.NamespaceAnnotations))
+			for k, v := range options.NamespaceAnnotations {
+				annotations[k] = v
+			}
+			meta["annotations"] = annotations
+		}
+	}
+
+	content, err := yaml.Marshal(ns)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling namespace resource: %w", err)
+	}
+
+	newResources := append([]fleet.BundleResource{
+		{
+			Name:    rawyaml.YAMLPrefix + "namespace.yaml",
+			Content: string(content),
+		},
+	}, m.Resources...)
+
+	return &manifest.Manifest{
+		Resources: newResources,
+		Commit:    m.Commit,
+	}, nil
 }
 
 // process filters the manifests resources and adds a Chart.yaml if missing
@@ -71,7 +139,7 @@ func move(m *manifest.Manifest, from, to string) (result []fleet.BundleResource)
 }
 
 // manifests returns a filtered list of BundleResources
-// It also treats the 'templates/' directory as a special case.
+// It also treats the templates/ directory as a special case.
 func manifests(m *manifest.Manifest) (result []fleet.BundleResource) {
 	var ignorePrefix []string
 	for _, resource := range m.Resources {

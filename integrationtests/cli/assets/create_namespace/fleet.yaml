@@ -1,0 +1,8 @@
+namespace: my-test-namespace
+createNamespace: true
+namespaceLabels:
+  team: backend
+namespaceAnnotations:
+  purpose: app-tier
+targets:
+- clusterSelector: {}

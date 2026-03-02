@@ -1,0 +1,4 @@
+defaultNamespace: my-default-namespace
+createNamespace: true
+targets:
+- clusterSelector: {}

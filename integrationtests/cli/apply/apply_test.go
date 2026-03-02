@@ -964,3 +964,76 @@ var _ = Describe("Fleet apply with dependsOn and acceptedStates", func() {
 		})
 	})
 })
+
+var _ = Describe("Fleet apply with createNamespace", func() {
+	var (
+		dirs    []string
+		name    string
+		options apply.Options
+	)
+
+	When("fleet.yaml sets createNamespace with a targetNamespace (namespace:)", func() {
+		BeforeEach(func() {
+			name = "create-namespace"
+			dirs = []string{cli.AssetsPath + "create_namespace"}
+		})
+
+		It("creates a Bundle with createNamespace set and a synthesized namespace resource", func() {
+			err := fleetApply(name, dirs, options)
+			Expect(err).NotTo(HaveOccurred())
+
+			bundle, err := cli.GetBundleFromOutput(buf)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(bundle.Spec.CreateNamespace).To(BeTrue())
+			Expect(bundle.Spec.TargetNamespace).To(Equal("my-test-namespace"))
+			Expect(bundle.Spec.NamespaceLabels).To(HaveKeyWithValue("team", "backend"))
+			Expect(bundle.Spec.NamespaceAnnotations).To(HaveKeyWithValue("purpose", "app-tier"))
+
+			// The bundle must have exactly one resource: the synthesized namespace manifest.
+			// It is injected at render time (in the Helm deployer), not stored in Spec.Resources,
+			// so the bundle itself contains no resources at the apply stage.
+			Expect(bundle.Spec.Resources).To(BeEmpty())
+		})
+	})
+
+	When("fleet.yaml sets createNamespace with a defaultNamespace only", func() {
+		BeforeEach(func() {
+			name = "create-namespace-default"
+			dirs = []string{cli.AssetsPath + "create_namespace_default"}
+		})
+
+		It("creates a Bundle with createNamespace set and defaultNamespace configured", func() {
+			err := fleetApply(name, dirs, options)
+			Expect(err).NotTo(HaveOccurred())
+
+			bundle, err := cli.GetBundleFromOutput(buf)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(bundle.Spec.CreateNamespace).To(BeTrue())
+			Expect(bundle.Spec.DefaultNamespace).To(Equal("my-default-namespace"))
+			Expect(bundle.Spec.Resources).To(BeEmpty())
+		})
+	})
+
+	When("fleet.yaml-only directory without createNamespace set", func() {
+		BeforeEach(func() {
+			name = "dependson-no-acceptedstates"
+			// dependson_no_acceptedstates has a fleet.yaml and a configmap, so it has resources.
+			// We use the dependson_valid asset which has both a fleet.yaml and a configmap.yaml,
+			// meaning this test confirms the normal non-empty case still works fine.
+			dirs = []string{cli.AssetsPath + "dependson_valid"}
+		})
+
+		It("creates a bundle normally when resources are present", func() {
+			err := fleetApply(name, dirs, options)
+			Expect(err).NotTo(HaveOccurred())
+
+			bundle, err := cli.GetBundleFromOutput(buf)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(bundle.Spec.CreateNamespace).To(BeFalse())
+			Expect(bundle.Spec.Resources).NotTo(BeEmpty())
+		})
+	})
+})

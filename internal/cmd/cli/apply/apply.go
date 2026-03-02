@@ -466,7 +466,7 @@ func bundleFromDir(ctx context.Context, name, baseDir string, opts Options) (*fl
 	bundle, scans, err := newBundle(ctx, bundleID, baseDir, opts)
 	if err != nil {
 		return nil, nil, err
-	} else if len(bundle.Spec.Resources) == 0 {
+	} else if len(bundle.Spec.Resources) == 0 && !bundle.Spec.CreateNamespace {
 		return nil, nil, ErrNoResources
 	}
 	return bundle, scans, nil

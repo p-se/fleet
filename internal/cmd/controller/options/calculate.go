@@ -107,6 +107,7 @@ func Merge(base, custom fleet.BundleDeploymentOptions) fleet.BundleDeploymentOpt
 		result.ForceSyncGeneration = custom.ForceSyncGeneration
 	}
 	result.KeepResources = result.KeepResources || custom.KeepResources
+	result.CreateNamespace = result.CreateNamespace || custom.CreateNamespace
 	if custom.CorrectDrift != nil {
 		result.CorrectDrift = custom.CorrectDrift
 	}
