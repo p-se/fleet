@@ -120,6 +120,73 @@ func TestGitDownloadCABundle(t *testing.T) {
 	})
 }
 
+// TestGitDownloadProxyCABundle verifies that PROXY_CA_BUNDLE is merged into
+// the effective CA bundle used for TLS verification in gitDownload.
+//
+//   - PROXY_CA_BUNDLE alone (no auth.CABundle): TLS succeeds when the env var
+//     contains the server's cert, confirming the merge happens even without an
+//     explicit CA bundle in the Auth struct.
+//   - PROXY_CA_BUNDLE merged with auth.CABundle: both certs are trusted.
+//   - Empty PROXY_CA_BUNDLE: falls back to auth.CABundle only.
+//
+// Not parallel: the test mutates the process-global PROXY_CA_BUNDLE env var.
+func TestGitDownloadProxyCABundle(t *testing.T) {
+	srv, srvCertPEM := newSelfSignedTLSServer(t)
+	otherSrv, otherCertPEM := newSelfSignedTLSServer(t)
+
+	t.Run("PROXY_CA_BUNDLE alone trusts the server", func(t *testing.T) {
+		t.Setenv("PROXY_CA_BUNDLE", string(srvCertPEM))
+		dst := t.TempDir()
+		err := gitDownload(context.Background(), dst, srv.URL, Auth{})
+		require.Error(t, err)
+		// TLS succeeded; expect a git-protocol error, not a certificate error.
+		assert.NotContains(t, err.Error(), "certificate")
+	})
+
+	t.Run("PROXY_CA_BUNDLE is merged with auth.CABundle", func(t *testing.T) {
+		// auth.CABundle covers srv; PROXY_CA_BUNDLE covers otherSrv.
+		t.Setenv("PROXY_CA_BUNDLE", string(otherCertPEM))
+
+		// auth.CABundle server: trusted via auth.CABundle (PROXY_CA_BUNDLE not needed).
+		dst := t.TempDir()
+		err := gitDownload(context.Background(), dst, srv.URL, Auth{CABundle: srvCertPEM})
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "certificate", "auth.CABundle server should get past TLS")
+
+		// PROXY_CA_BUNDLE server: trusted via the merged env var cert.
+		dst = t.TempDir()
+		err = gitDownload(context.Background(), dst, otherSrv.URL, Auth{CABundle: srvCertPEM})
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "certificate", "PROXY_CA_BUNDLE server should get past TLS via merge")
+	})
+
+	t.Run("empty PROXY_CA_BUNDLE uses auth.CABundle only", func(t *testing.T) {
+		t.Setenv("PROXY_CA_BUNDLE", "")
+		dst := t.TempDir()
+		err := gitDownload(context.Background(), dst, srv.URL, Auth{CABundle: srvCertPEM})
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "certificate")
+	})
+
+	t.Run("wrong PROXY_CA_BUNDLE without auth.CABundle fails with TLS error", func(t *testing.T) {
+		// otherCertPEM does not cover srv, and there is no auth.CABundle fallback,
+		// so TLS must fail with a certificate error.
+		t.Setenv("PROXY_CA_BUNDLE", string(otherCertPEM))
+		dst := t.TempDir()
+		err := gitDownload(context.Background(), dst, srv.URL, Auth{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "certificate")
+	})
+
+	t.Run("no PROXY_CA_BUNDLE and no auth.CABundle fails with TLS error", func(t *testing.T) {
+		t.Setenv("PROXY_CA_BUNDLE", "")
+		dst := t.TempDir()
+		err := gitDownload(context.Background(), dst, srv.URL, Auth{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "certificate")
+	})
+}
+
 // generateEd25519PEM returns a PEM-encoded Ed25519 private key for use in tests.
 func generateEd25519PEM(t *testing.T) []byte {
 	t.Helper()
