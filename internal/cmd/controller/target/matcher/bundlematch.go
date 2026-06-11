@@ -51,12 +51,17 @@ func (a *BundleMatch) MatchTargetCustomizations(clusterName string, clusterGroup
 	return nil
 }
 
-// MatchAllTargetCustomizations returns all BundleTargets marked as customizations that match the target criteria, in list order.
+// MatchAllTargetCustomizations returns all BundleTargets that match the target criteria, in list order.
 // Used when TargetCustomizationMode is AllMatches.
+//
+// For GitRepo bundles (which have TargetRestrictions) only customization targets
+// participate, mirroring the fleet.yaml model. For bundles without restrictions
+// (HelmOp / CLI / standalone) the targets are themselves the customizations, so
+// all matching targets participate in the merge.
 func (a *BundleMatch) MatchAllTargetCustomizations(clusterName string, clusterGroups map[string]map[string]string, clusterLabels map[string]string) []*fleet.BundleTarget {
 	var result []*fleet.BundleTarget
 	for _, tm := range a.matcher.matches {
-		if !tm.isCustomization {
+		if !tm.isCustomization && len(a.matcher.restrictions) > 0 {
 			continue
 		}
 		if len(clusterGroups) == 0 {
@@ -125,9 +130,10 @@ func (a *BundleMatch) initMatcher() error {
 // GitRepo targets (appendTargets), so the first N targets are customizations
 // where N = len(Targets) - len(TargetRestrictions).
 //
-// If there are no TargetRestrictions, the bundle wasn't created by a GitRepo
-// or HelmOp (e.g. CLI-loaded bundles). In that case all targets are treated
-// as regular bundle targets.
+// If there are no TargetRestrictions (HelmOp / CLI / standalone bundles) the
+// bundle has no separate customization layer, so no target is flagged as a
+// customization here. Under AllMatches such targets are still merged together;
+// see MatchAllTargetCustomizations.
 func determineIsCustomization(index int, numCustomizations int, numRestrictions int) bool {
 	if numRestrictions == 0 {
 		return false

@@ -706,6 +706,111 @@ var _ = Describe("Bundle targets", Ordered, func() {
 			}
 		})
 	})
+
+	// AllMatches mode without TargetRestrictions mirrors a HelmOp / CLI bundle:
+	// there is no separate customization layer, so the targets themselves are the
+	// customizations and every matching target is merged in order, even though
+	// none is flagged as a customization.
+	When("TargetCustomizationMode is AllMatches and the bundle has no TargetRestrictions", func() {
+		BeforeEach(func() {
+			bundleName = "all-matches-no-restrictions"
+			bdLabels = map[string]string{
+				"fleet.cattle.io/bundle-name":      bundleName,
+				"fleet.cattle.io/bundle-namespace": namespace,
+			}
+			expectedNumberOfBundleDeployments = 3
+
+			// No GitRepo/restrictions layer (HelmOp/CLI shape).
+			// Target 1: all clusters -> env
+			// Target 2: only cluster group "one" -> region
+			targets = []v1alpha1.BundleTarget{
+				{
+					BundleDeploymentOptions: v1alpha1.BundleDeploymentOptions{
+						Helm: &v1alpha1.HelmOptions{
+							Values: &v1alpha1.GenericMap{Data: map[string]interface{}{"env": "prod"}},
+						},
+					},
+					ClusterGroup: "all",
+				},
+				{
+					BundleDeploymentOptions: v1alpha1.BundleDeploymentOptions{
+						Helm: &v1alpha1.HelmOptions{
+							Values: &v1alpha1.GenericMap{Data: map[string]interface{}{"region": "us-west"}},
+						},
+					},
+					ClusterGroup: "one",
+				},
+			}
+			targetRestrictions = nil
+		})
+
+		JustBeforeEach(func() {
+			mod := bundle.DeepCopy()
+			mod.Spec.TargetCustomizationMode = v1alpha1.TargetCustomizationModeAllMatches
+			Expect(k8sClient.Patch(ctx, mod, client.MergeFrom(bundle))).ToNot(HaveOccurred())
+			bundle = mod
+		})
+
+		It("merges all matching targets into cluster one's BundleDeployment", func() {
+			bdList := verifyBundlesDeploymentsAreCreated(expectedNumberOfBundleDeployments, bdLabels, bundleName)
+			for _, bd := range bdList.Items {
+				values, _ := loadValues(bd)
+				if strings.Contains(bd.Namespace, "cluster-one") {
+					Expect(values).To(HaveKeyWithValue("env", "prod"), "cluster-one should have env from the all-clusters target")
+					Expect(values).To(HaveKeyWithValue("region", "us-west"), "cluster-one should also have region from the group-one target")
+				} else {
+					Expect(values).To(HaveKeyWithValue("env", "prod"), "other clusters should have env from the all-clusters target")
+					Expect(values).ToNot(HaveKey("region"), "other clusters should not have region")
+				}
+			}
+		})
+	})
+
+	// AllMatches without TargetRestrictions also honours doNotDeploy as an OR
+	// across all matching targets, just like the GitRepo customization case.
+	When("TargetCustomizationMode is AllMatches, no TargetRestrictions, and a matching target has doNotDeploy", func() {
+		BeforeEach(func() {
+			bundleName = "all-matches-no-restrictions-do-not-deploy"
+			bdLabels = map[string]string{
+				"fleet.cattle.io/bundle-name":      bundleName,
+				"fleet.cattle.io/bundle-namespace": namespace,
+			}
+			// cluster "one" matches both targets; the group-one target sets
+			// doNotDeploy, so cluster one is skipped. The other clusters match only
+			// the all-clusters target and are deployed.
+			expectedNumberOfBundleDeployments = 2
+
+			targets = []v1alpha1.BundleTarget{
+				{
+					BundleDeploymentOptions: v1alpha1.BundleDeploymentOptions{
+						Helm: &v1alpha1.HelmOptions{
+							Values: &v1alpha1.GenericMap{Data: map[string]interface{}{"env": "prod"}},
+						},
+					},
+					ClusterGroup: "all",
+				},
+				{
+					ClusterGroup: "one",
+					DoNotDeploy:  true,
+				},
+			}
+			targetRestrictions = nil
+		})
+
+		JustBeforeEach(func() {
+			mod := bundle.DeepCopy()
+			mod.Spec.TargetCustomizationMode = v1alpha1.TargetCustomizationModeAllMatches
+			Expect(k8sClient.Patch(ctx, mod, client.MergeFrom(bundle))).ToNot(HaveOccurred())
+			bundle = mod
+		})
+
+		It("skips cluster one and deploys to the other clusters", func() {
+			bdList := verifyBundlesDeploymentsAreCreated(expectedNumberOfBundleDeployments, bdLabels, bundleName)
+			for _, bd := range bdList.Items {
+				Expect(bd.Namespace).ToNot(ContainSubstring("cluster-one"), "cluster-one should be skipped due to doNotDeploy")
+			}
+		})
+	})
 })
 
 func verifyBundlesDeploymentsAreCreated(numBundleDeployments int, bdLabels map[string]string, bundleName string) *v1alpha1.BundleDeploymentList {

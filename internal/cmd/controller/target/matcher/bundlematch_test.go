@@ -208,6 +208,40 @@ func TestCustomizationWithSameSelectorsAsGitRepoTarget(t *testing.T) {
 	})
 }
 
+// TestMatchAllTargetCustomizations_NoRestrictions verifies that for bundles
+// without TargetRestrictions (HelmOp / CLI / standalone) every matching target
+// participates in the AllMatches merge, even though none is flagged as a
+// customization (determineIsCustomization returns false when there are no
+// restrictions).
+func TestMatchAllTargetCustomizations_NoRestrictions(t *testing.T) {
+	// No TargetRestrictions: mirrors a HelmOp / CLI bundle.
+	bundle := &fleet.Bundle{
+		Spec: fleet.BundleSpec{
+			Targets: []fleet.BundleTarget{
+				{Name: "all", ClusterSelector: &metav1.LabelSelector{}},
+				{Name: "edge", ClusterSelector: labelSelector(map[string]string{"edge": "true"})},
+			},
+		},
+	}
+	bm, err := New(bundle)
+	require.NoError(t, err)
+
+	t.Run("a cluster matching both targets gets both merged", func(t *testing.T) {
+		got := bm.MatchAllTargetCustomizations("local", nil, map[string]string{"edge": "true"})
+		var names []string
+		for _, g := range got {
+			names = append(names, g.Name)
+		}
+		assert.Equal(t, []string{"all", "edge"}, names, "both matching targets should participate when there are no restrictions")
+	})
+
+	t.Run("a cluster matching only the catch-all gets just that one", func(t *testing.T) {
+		got := bm.MatchAllTargetCustomizations("local", nil, map[string]string{"other": "true"})
+		require.Len(t, got, 1)
+		assert.Equal(t, "all", got[0].Name)
+	})
+}
+
 func TestDetermineIsCustomization(t *testing.T) {
 	tests := []struct {
 		name              string
