@@ -234,12 +234,12 @@ func Metrics(experiment *gm.Experiment, suffix string) {
 }
 
 func getMetrics(res map[string]float64, url string, controllers ...string) {
-	pod := addRandomSuffix("curl")
 	var (
 		mfs    map[string]*dto.MetricFamily
 		parser = expfmt.NewTextParser(model.LegacyValidation)
 	)
 	Eventually(func() error {
+		pod := addRandomSuffix("curl")
 		GinkgoWriter.Print("Fetching metrics from " + url + "\n")
 		out, err := k.Run("run", "--rm", "--attach", "--quiet", "--restart=Never", pod, "--image=curlimages/curl", "--namespace", "cattle-fleet-system", "--command", "--", "curl", "-s", url)
 		if err != nil {
