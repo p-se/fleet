@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -213,6 +215,114 @@ func TestCopyResourcesFromUpstream_MissingNamespaceForbidden(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "does not exist") {
 		t.Errorf("expected the error to report the missing namespace, got %v", err)
+	}
+}
+
+// reviewingClient returns a client that answers SubjectAccessReviews with allowed,
+// recording the reviews it was asked for.
+func reviewingClient(t *testing.T, allowed bool, seen *[]authzv1.ResourceAttributes) client.Client {
+	t.Helper()
+	return fake.NewClientBuilder().
+		WithScheme(downstreamResourcesScheme(t)).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				sar, ok := obj.(*authzv1.SubjectAccessReview)
+				if !ok {
+					return c.Create(ctx, obj, opts...)
+				}
+				*seen = append(*seen, *sar.Spec.ResourceAttributes)
+				sar.Status.Allowed = allowed
+				return nil
+			},
+		}).
+		Build()
+}
+
+// TestReviewCleanupAccess_Allowed verifies that the pre-flight reviews every verb
+// the cleanup needs, on both copied resource kinds, in the deployment namespace,
+// and passes when they are granted.
+func TestReviewCleanupAccess_Allowed(t *testing.T) {
+	var seen []authzv1.ResourceAttributes
+	c := reviewingClient(t, true, &seen)
+
+	if err := reviewCleanupAccess(context.Background(), c, "system:serviceaccount:ns:sa", "target"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Both verbs are needed by the cleanup alone: neither the copy (get, create,
+	// update) nor the release uninstall (which does not cover the copies, they are
+	// not part of the release manifest) implies them.
+	want := []authzv1.ResourceAttributes{
+		{Namespace: "target", Verb: "list", Resource: "secrets"},
+		{Namespace: "target", Verb: "delete", Resource: "secrets"},
+		{Namespace: "target", Verb: "list", Resource: "configmaps"},
+		{Namespace: "target", Verb: "delete", Resource: "configmaps"},
+	}
+	if !reflect.DeepEqual(seen, want) {
+		t.Errorf("expected reviews %v, got %v", want, seen)
+	}
+}
+
+// TestReviewCleanupAccess_Denied verifies that a denied review is reported as a
+// Forbidden, so the caller requeues, and that the message names what to grant.
+func TestReviewCleanupAccess_Denied(t *testing.T) {
+	var seen []authzv1.ResourceAttributes
+	c := reviewingClient(t, false, &seen)
+
+	err := reviewCleanupAccess(context.Background(), c, "system:serviceaccount:ns:sa", "target")
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if !apierrors.IsForbidden(err) {
+		t.Errorf("expected the error to be detectable as Forbidden, got %v", err)
+	}
+	for _, want := range []string{"list", "delete", "secrets", "target", "system:serviceaccount:ns:sa"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("expected the error to mention %q, got %v", want, err)
+		}
+	}
+	// It stops at the first denial rather than reviewing everything.
+	if len(seen) != 1 {
+		t.Errorf("expected to stop after the first denied review, got %d", len(seen))
+	}
+}
+
+// TestCopyResourcesFromUpstream_NoServiceAccountSkipsReview verifies that the
+// pre-flight is skipped when no service account resolves: the deployment then runs
+// as the agent, which is not subject to the tenant's RBAC.
+func TestCopyResourcesFromUpstream_NoServiceAccountSkipsReview(t *testing.T) {
+	scheme := downstreamResourcesScheme(t)
+	bd := downstreamResourcesBundleDeployment()
+
+	upstream := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "src-secret", Namespace: "cluster-ns"},
+			Data:       map[string][]byte{"key": []byte("value")},
+		},
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: "src-cm", Namespace: "cluster-ns"},
+			Data:       map[string]string{"key": "value"},
+		},
+	).Build()
+
+	// Any review reaching this client would be denied, so the copy succeeding
+	// proves none was submitted.
+	var seen []authzv1.ResourceAttributes
+	agent := reviewingClient(t, false, &seen)
+	downstream := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	r := &BundleDeploymentReconciler{
+		Reader:           upstream,
+		LocalClient:      agent,
+		Deployer:         deployer.New(downstream, upstream, nil, nil),
+		DefaultNamespace: "cattle-fleet-system",
+	}
+
+	if _, err := r.copyResourcesFromUpstream(context.Background(), bd, logr.Discard()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(seen) != 0 {
+		t.Errorf("expected no access reviews without a service account, got %v", seen)
 	}
 }
 

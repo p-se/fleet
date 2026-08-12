@@ -51,6 +51,13 @@ func (h *Helm) ImpersonatedClient(ctx context.Context, serviceAccountName string
 	return client.New(restConfig, client.Options{Scheme: h.client.Scheme(), Mapper: mapper})
 }
 
+// ResolveServiceAccount returns the namespace and name of the service account a
+// deployment runs as, using the same resolution as ImpersonatedClient. The name
+// is empty when no account resolves, meaning the deployment runs as the agent.
+func (h *Helm) ResolveServiceAccount(ctx context.Context, serviceAccountName string) (string, string, error) {
+	return h.getServiceAccount(ctx, serviceAccountName)
+}
+
 // getServiceAccount is called with an empty name, unless the user specified a
 // service account in their git repo.
 //

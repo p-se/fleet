@@ -18,11 +18,13 @@ import (
 	"github.com/rancher/fleet/pkg/helmvalues"
 
 	"github.com/go-logr/logr"
+	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	errutil "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -386,6 +388,15 @@ func (r *BundleDeploymentReconciler) copyResourcesFromUpstream(
 		return false, err
 	}
 
+	// The copies are removed again on release deletion, at which point the bundle
+	// deployment is already gone and there is nowhere left to report a failure. Check
+	// up front that the deployment's identity will be able to do it, so a permission
+	// set that can copy but not clean up is reported here, while the bundle deployment
+	// still exists to carry the message.
+	if err := r.checkCopyCleanupPermissions(ctx, bd, destNS); err != nil {
+		return false, err
+	}
+
 	// Whether the namespace exists is a fact about the cluster, not an action taken
 	// on the deployment's behalf, so it is read with the agent client: the copy does
 	// not require the deployment's service account to hold 'get' on namespaces.
@@ -443,6 +454,73 @@ func (r *BundleDeploymentReconciler) copyResourcesFromUpstream(
 	bd.Status.DownstreamResourcesGeneration = bd.Spec.DownstreamResourcesGeneration
 
 	return requiresBDUpdate, nil
+}
+
+// cleanupVerbs are the verbs the copied-resource cleanup needs but neither the copy
+// nor the release uninstall implies. The cleanup selects the copies by ownership
+// label, so it lists them, and then deletes them; the copy itself only gets, creates
+// and updates, and the uninstall only covers resources in the release manifest, which
+// the copies are not part of.
+var cleanupVerbs = []string{"list", "delete"}
+
+// checkCopyCleanupPermissions verifies that the deployment's service account will be
+// able to remove the copied resources again when the release is deleted. That cleanup
+// runs long after this point, once the bundle deployment has been deleted and no
+// status is left to report against, so a missing permission is surfaced here instead.
+//
+// The reviews are submitted by the agent rather than as the service account, so the
+// check does not depend on that account being allowed to introspect itself. Nothing
+// is checked when no service account resolves: the deployment then runs as the agent,
+// which is not subject to the tenant's RBAC.
+func (r *BundleDeploymentReconciler) checkCopyCleanupPermissions(ctx context.Context, bd *fleetv1.BundleDeployment, destNS string) error {
+	saNamespace, saName, err := r.Deployer.ResolveServiceAccount(ctx, bd)
+	if err != nil {
+		return err
+	}
+	if saName == "" {
+		return nil
+	}
+
+	return reviewCleanupAccess(ctx, r.LocalClient, fmt.Sprintf("system:serviceaccount:%s:%s", saNamespace, saName), destNS)
+}
+
+// reviewCleanupAccess asks the downstream cluster whether user may perform the
+// cleanup in destNS, returning a Forbidden naming the missing grant if it may not.
+func reviewCleanupAccess(ctx context.Context, c client.Client, user, destNS string) error {
+	for _, resource := range []string{"secrets", "configmaps"} {
+		for _, verb := range cleanupVerbs {
+			sar := &authzv1.SubjectAccessReview{
+				Spec: authzv1.SubjectAccessReviewSpec{
+					User: user,
+					ResourceAttributes: &authzv1.ResourceAttributes{
+						Namespace: destNS,
+						Verb:      verb,
+						Resource:  resource,
+					},
+				},
+			}
+			if err := c.Create(ctx, sar); err != nil {
+				return fmt.Errorf("failed to review %q access to %s in namespace %q: %w", verb, resource, destNS, err)
+			}
+
+			if !sar.Status.Allowed {
+				// Reported as a Forbidden so the caller requeues and the deployment
+				// converges once the permission is granted.
+				return apierrors.NewForbidden(
+					schema.GroupResource{Resource: resource},
+					"",
+					fmt.Errorf(
+						"the deployment's service account %q may not %q %s in namespace %q, so the resources copied "+
+							"through downstreamResources could not be removed again when the release is deleted; "+
+							"grant it %v on %s in that namespace",
+						user, verb, resource, destNS, cleanupVerbs, resource,
+					),
+				)
+			}
+		}
+	}
+
+	return nil
 }
 
 // copySecret copies a secret from the bundle deployment's namespace to the destination

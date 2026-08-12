@@ -299,6 +299,19 @@ func (d *Deployer) ImpersonatingClient(ctx context.Context, bd *fleet.BundleDepl
 	return d.client, nil
 }
 
+// ResolveServiceAccount returns the namespace and name of the service account the
+// deployment runs as, using the same resolution as ImpersonatingClient. The name is
+// empty when no account resolves, meaning the deployment runs as the agent itself.
+func (d *Deployer) ResolveServiceAccount(ctx context.Context, bd *fleet.BundleDeployment) (string, string, error) {
+	if bd == nil {
+		return "", "", errors.New("bundledeployment is nil")
+	}
+	if d.helm == nil {
+		return "", "", nil
+	}
+	return d.helm.ResolveServiceAccount(ctx, bd.Spec.Options.ServiceAccount)
+}
+
 // updateNamespace updates a namespace resource in the cluster.
 func updateNamespace(ctx context.Context, c client.Client, ns *corev1.Namespace) error {
 	if err := c.Update(ctx, ns); err != nil {
