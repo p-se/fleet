@@ -20,6 +20,10 @@ jobs:
   e2e-fleet-mc-test:
     runs-on: ubuntu-latest
 
+    env:
+      DISK_REPORT_FILE: tmp/disk-usage/report.txt
+      DISK_TREND_FILE: tmp/disk-usage/trend.csv
+
     steps:
       -
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -30,6 +34,9 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: 'go.mod'
+      -
+        name: 'Disk usage: baseline'
+        run: ./.github/scripts/report-disk-usage.sh baseline --deep
       -
         name: Cache crust-gather CLI
         id: cache-crust
@@ -59,6 +66,9 @@ jobs:
         name: Build Docker Images
         run: |
           ./.github/scripts/build-fleet-images.sh
+      -
+        name: 'Disk usage: after-build'
+        run: ./.github/scripts/report-disk-usage.sh after-build
       -
         name: Cache k3d CLI
         id: cache-k3d
@@ -110,16 +120,26 @@ jobs:
             --k3s-arg "--kubelet-arg=image-gc-high-threshold=100@all" \
             --network "nw01"
       -
+        name: 'Disk usage: after-clusters'
+        run: ./.github/scripts/report-disk-usage.sh after-clusters
+      -
         name: Import Images Into k3d
         run: |
           ./.github/scripts/k3d-import-retry.sh rancher/fleet:dev rancher/fleet-agent:dev -c upstream
           ./.github/scripts/k3d-import-retry.sh rancher/fleet-agent:dev -c downstream
           ./.github/scripts/k3d-import-retry.sh rancher/fleet-agent:dev -c managed-downstream
       -
+        name: 'Disk usage: after-image-import'
+        run: ./.github/scripts/report-disk-usage.sh after-image-import
+      -
         name: Deploy Fleet
         run: |
           kubectl config use-context k3d-upstream
           ./.github/scripts/deploy-fleet.sh
+      -
+        name: 'Disk usage: after-deploy-fleet'
+        if: always()
+        run: ./.github/scripts/report-disk-usage.sh after-deploy-fleet
       -
         name: Deploy and Register Downstream Fleet
         run: |
@@ -248,18 +268,34 @@ jobs:
         run: |
           go test -v -count=1 -timeout=1h ./e2e/acceptance/multi-cluster-examples -args -ginkgo.github-output -ginkgo.trace
       -
+        name: 'Disk usage: final'
+        if: always()
+        run: |
+          ./.github/scripts/report-disk-usage.sh final --deep
+          ./.github/scripts/report-disk-usage.sh --summary
+      -
+        name: Dump Failed Upstream Environment
+        if: failure()
+        continue-on-error: true
+        run: |
+          kubectl config use-context k3d-upstream
+          crust-gather collect --exclude-namespace=kube-system --exclude-kind=Lease --duration=30s -f tmp/upstream-dump
+      -
         name: Dump Failed Downstream Environment
         if: failure()
+        continue-on-error: true
         run: |
           kubectl config use-context k3d-downstream
-          crust-gather collect --exclude-namespace=kube-system --exclude-kind=Lease --duration=5s -f tmp/downstream
+          crust-gather collect --exclude-namespace=kube-system --exclude-kind=Lease --duration=30s -f tmp/downstream
       -
         name: Upload Logs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
+        if: always()
         with:
           name: gha-fleet-mc-e2e-logs-${{ github.sha }}-${{ github.run_id }}
           path: |
             tmp/downstream
             tmp/upstream
+            tmp/upstream-dump
+            tmp/disk-usage
           retention-days: 2
