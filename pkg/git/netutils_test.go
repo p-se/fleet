@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	fleetgithub "github.com/rancher/fleet/internal/github"
+	"github.com/rancher/fleet/internal/httputils"
 	"github.com/rancher/fleet/pkg/git"
 )
 
@@ -492,7 +493,9 @@ var _ = Describe("git's GetHTTPClientFromSecret tests", func() {
 		client, err := git.GetHTTPClientFromSecret(nil, caBundle, false, gitClientTimeout)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(client).ToNot(BeNil())
-		expectedTransport, ok := client.Transport.(*http.Transport)
+		uaTransport, ok := client.Transport.(httputils.UserAgentTransport)
+		Expect(ok).To(BeTrue())
+		expectedTransport, ok := uaTransport.Next.(*http.Transport)
 		Expect(ok).To(BeTrue())
 
 		It("returns a client's transport with InsecureSkipVerify = false", func() {
@@ -518,7 +521,9 @@ var _ = Describe("git's GetHTTPClientFromSecret tests", func() {
 		client, err := git.GetHTTPClientFromSecret(nil, caBundle, true, gitClientTimeout)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(client).ToNot(BeNil())
-		expectedTransport, ok := client.Transport.(*http.Transport)
+		uaTransport, ok := client.Transport.(httputils.UserAgentTransport)
+		Expect(ok).To(BeTrue())
+		expectedTransport, ok := uaTransport.Next.(*http.Transport)
 		Expect(ok).To(BeTrue())
 
 		It("returns a client's transport with InsecureSkipVerify = true", func() {
@@ -560,7 +565,9 @@ DXZDjC5Ty3zfDBeWUA==
 		client, err := git.GetHTTPClientFromSecret(nil, block.Bytes, true, gitClientTimeout)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(client).ToNot(BeNil())
-		expectedTransport, ok := client.Transport.(*http.Transport)
+		uaTransport, ok := client.Transport.(httputils.UserAgentTransport)
+		Expect(ok).To(BeTrue())
+		expectedTransport, ok := uaTransport.Next.(*http.Transport)
 		Expect(ok).To(BeTrue())
 
 		It("returns a client's transport with InsecureSkipVerify = true", func() {
@@ -645,7 +652,9 @@ MC4CAQAwBQYDK2VwBCIEINifzf07d9qx3d44e0FSbV4mC/xQxT644RRbpgNpin7I
 		Expect(client).ToNot(BeNil())
 
 		It("returns a client's transport with certificates", func() {
-			expectedTransport, ok := client.Transport.(*http.Transport)
+			uaTransport, ok := client.Transport.(httputils.UserAgentTransport)
+			Expect(ok).To(BeTrue())
+			expectedTransport, ok := uaTransport.Next.(*http.Transport)
 			Expect(ok).To(BeTrue())
 			Expect(expectedTransport.TLSClientConfig.Certificates).ToNot(BeEmpty())
 		})

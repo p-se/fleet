@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	fleetgithub "github.com/rancher/fleet/internal/github"
+	"github.com/rancher/fleet/internal/httputils"
 	fleetssh "github.com/rancher/fleet/internal/ssh"
 )
 
@@ -116,7 +117,7 @@ func GetHTTPClientFromSecret(creds *corev1.Secret, bundleCA []byte, insecureTLSV
 	transport.TLSClientConfig.InsecureSkipVerify = insecureTLSVerify
 
 	client := &http.Client{
-		Transport: transport,
+		Transport: httputils.UserAgentTransport{Next: transport},
 		Timeout:   timeout,
 	}
 	if username != "" || password != "" {
