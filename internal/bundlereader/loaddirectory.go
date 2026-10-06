@@ -18,6 +18,7 @@ import (
 	"helm.sh/helm/v4/pkg/downloader"
 	helmgetter "helm.sh/helm/v4/pkg/getter"
 	"helm.sh/helm/v4/pkg/registry"
+	orasauth "oras.land/oras-go/v2/registry/remote/auth"
 
 	"github.com/rancher/fleet/internal/content"
 	"github.com/rancher/fleet/internal/helmupdater"
@@ -338,9 +339,24 @@ func downloadOCIChart(name, version, path string, auth Auth) (string, error) {
 	}
 	defer os.RemoveAll(temp)
 
+	// Fleet's User-Agent is set on the authorizer, as this is the only place
+	// where Helm lets it be set for OCI chart pulls:
+	// - Helm's registry client sends every request through its authorizer,
+	//   which stamps the header. If none is given, Helm creates one carrying
+	//   its own User-Agent, with no option to change the value.
+	// - getter.WithUserAgent is only read by Helm's HTTP and plugin getters,
+	//   its OCI getter ignores it.
+	// - Wrapping the HTTP client's transport, as done for the other chart
+	//   sources, fails in Helm's TLS setup, see getHTTPClientForHelmRegistry.
+	// The authorizer wraps the same HTTP client, so TLS settings still apply.
+	httpClient := getHTTPClientForHelmRegistry(auth)
+	authorizer := orasauth.Client{Client: httpClient}
+	authorizer.SetUserAgent(httputils.UserAgent())
+
 	clientOptions := []registry.ClientOption{
 		registry.ClientOptCredentialsFile(filepath.Join(temp, "creds.json")),
-		registry.ClientOptHTTPClient(getHTTPClientForHelmRegistry(auth)),
+		registry.ClientOptHTTPClient(httpClient),
+		registry.ClientOptAuthorizer(authorizer),
 	}
 	if auth.BasicHTTP {
 		clientOptions = append(clientOptions, registry.ClientOptPlainHTTP())
@@ -369,9 +385,7 @@ func downloadOCIChart(name, version, path string, auth Auth) (string, error) {
 		}
 	}
 
-	getterOptions := []helmgetter.Option{
-		helmgetter.WithUserAgent(httputils.UserAgent()),
-	}
+	getterOptions := []helmgetter.Option{}
 	if auth.Username != "" && auth.Password != "" {
 		getterOptions = append(getterOptions, helmgetter.WithBasicAuth(auth.Username, auth.Password))
 	}

@@ -302,10 +302,10 @@ func GetOCITag(ctx context.Context, r *remote.Repository, v string) (string, err
 }
 
 // getHTTPClientForHelmRegistry returns a client for Helm's registry package,
-// whose TLS handling type-asserts Transport to *http.Transport and panics on
-// anything else (see #3782). It therefore cannot carry Fleet's User-Agent
-// transport; that header is passed to Helm through getter.WithUserAgent
-// instead.
+// whose TLS handling needs to reach the *http.Transport and fails on a
+// transport it does not know (see #3782). It therefore cannot carry Fleet's
+// User-Agent transport; that header is set on the authorizer handed to Helm's
+// registry client instead.
 func getHTTPClientForHelmRegistry(auth Auth) *http.Client {
 	return &http.Client{
 		Transport: transportForAuth(auth.InsecureSkipVerify, auth.CABundle),
